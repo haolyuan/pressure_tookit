@@ -1,3 +1,12 @@
+.idea/
+*example*
+*/test_data
+*debug*/
+debug/
+results/
+Results/
+test_data/
+*test*/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
