@@ -34,8 +34,8 @@ class PressureDataset(Dataset):
 
     def mapDepth2Floor(self,pointCloud):
         pointCloud = pointCloud.reshape([-1,3])
-        depth_slices_RT = (self.depth2floor[:3, :3] @ pointCloud.T + self.depth2floor.reshape([3, 1])).T
-        return depth_slices_RT
+        depth_floor = (self.depth2floor[:3, :3] @ pointCloud.T + self.depth2floor[:3, 3].reshape([3, 1])).T
+        return depth_floor
 
     def getFrameData(self,ids):
         #read rgbd

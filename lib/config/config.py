@@ -50,10 +50,14 @@ def parse_config(argv=None):
                         default='output',
                         type=str,
                         help='The folder where the output is stored')
-    # parser.add_argument('--essentials_dir',
-    #                     default='data/essentials',
-    #                     type=str,
-    #                     help='The folder where files to compute self-contact are stored.')
+    parser.add_argument('--color_size',
+                        default=[1280,720], type=int,
+                        nargs='*',
+                        help='Color size')
+    parser.add_argument('--depth_size',
+                        default=[640,576], type=int,
+                        nargs='*',
+                        help='Color size')
 
     # body model model
     parser.add_argument('--model_folder',

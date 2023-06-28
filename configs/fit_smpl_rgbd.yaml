@@ -4,6 +4,12 @@ basdir: 'E:/dataset'
 sub_ids: 'S12'
 seq_name: 'MoCap_20230422_145333'
 output_dir: 'output'
+color_size:
+  - 1280
+  - 720
+depth_size:
+  - 640
+  - 576
 
 num_shape_comps: 10
 model_gender: 'male'

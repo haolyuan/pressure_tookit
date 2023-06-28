@@ -9,14 +9,11 @@ from icecream import ic
 from lib.config.config import parse_config
 from lib.dataset.PressureDataset import PressureDataset
 from lib.fitSMPL.Camera import RGBDCamera
-from lib.fitSMPL.SMPLModel import SMPLModel
+from lib.fitSMPL.SMPLSolver import SMPLSolver
 
 def main(**args):
-    m_smpl = SMPLModel(
-        model_path=args.get('model_folder'),
-         num_betas=args.get('num_shape_comps'),
-         gender=args.get('model_gender'),
-    )
+    device = torch.device('cuda') if torch.cuda.is_available() \
+             else torch.device('cpu')
 
     m_data = PressureDataset(
         basdir=args.get('basdir'),
@@ -32,13 +29,22 @@ def main(**args):
         seq_name=args.get('seq_name'),
     )
 
-    frame_data = m_data.getFrameData(ids=13)
-    pointCloud = (m_cam.calcDepth3D(frame_data['depth_map'])).reshape([-1,3])
-    trimesh.Trimesh(vertices=pointCloud, process=False).export('debug/pointCloud.obj')
-    exit()
+    m_solver = SMPLSolver(
+        model_path=args.get('model_folder'),
+        num_betas=args.get('num_shape_comps'),
+        gender=args.get('model_gender'),
+        color_size=args.get('color_size'), depth_size=args.get('depth_size'),
+        cIntr=m_cam.cIntr_cpu, dIntr=m_cam.dIntr_cpu,
+        device=device
+    )
 
+
+
+
+    frame_data = m_data.getFrameData(ids=13)
     dv_valid,dn_valid = m_cam.preprocessDepth(frame_data['depth_map'],frame_data['mask'])
-    trimesh.Trimesh(vertices=dv_valid,process=False).export('debug/depth.obj')
+    depth_floor = m_data.mapDepth2Floor(dv_valid)
+    m_solver.initShape(m_data.depth2floor,depth_floor, keypoints=None)
 
 
 if __name__ == "__main__":
