@@ -5,6 +5,7 @@ from icecream import ic
 
 from lib.fitSMPL.SMPLModel import SMPLModel
 from lib.fitSMPL.depthTerm import DepthTerm
+from lib.Utils.fileio import saveJointsAsOBJ
 
 class SMPLSolver():
     def __init__(self,
@@ -50,19 +51,6 @@ class SMPLSolver():
         verts, J_transformed = self.m_smpl.updatePose()
         init_model = trimesh.Trimesh(vertices=verts.detach().cpu().numpy()[0],
                         faces=self.m_smpl.faces, process=False)
-
-        self.depth_term.findLiveVisibileVerticesIndex(init_model,floor2depth)
+        flame_visible_idx = self.depth_term.findLiveVisibileVerticesIndex(init_model,floor2depth)
 
         exit()
-
-
-
-        vertices = self.m_smpl.v_template.detach().cpu().numpy()#[0]
-        m_model = trimesh.Trimesh(vertices=vertices,faces=self.m_smpl.faces,process=False)
-        m_model.apply_transform(floor2depth)
-
-        self.depth_term.findLiveVisibileVerticesIndex(mesh=m_model)
-        exit()
-        ic(depth_scan.shape)
-        depth_scan = torch.tensor(depth_scan)
-        ic(self.m_smpl.betas ,self.m_smpl.body_pose ,self.m_smpl.transl ,self.m_smpl.global_orient)

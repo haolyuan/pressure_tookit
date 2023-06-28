@@ -17,6 +17,10 @@ class DepthTerm(nn.Module):
         self.cam_intr = cam_intr #fx,fy,cx,cy
         self.img_W = img_W
         self.img_H = img_H
+        hand_ids = np.loadtxt('essentials/hand_ids.txt').astype(np.int32)
+        self.valid_verts = np.ones(6890)
+        self.valid_verts[hand_ids] = 0
+
         self.renderer = modelRender(cam_intr,img_W,img_H)
 
 
@@ -33,31 +37,6 @@ class DepthTerm(nn.Module):
         kdtree = scipy.spatial.cKDTree(point_cloud.reshape([-1, 3]))
         dists, indices = kdtree.query(_mesh.vertices, k=near_size)
         min_dists = np.min(dists, axis=-1)
-        flame_visible_idx = np.where(min_dists < th)[0]
+        flame_visible_idx = np.where((min_dists < th)&(self.valid_verts>0.5))[0]
 
-        # vertices = mesh.vertices
-        # visible_vertices = vertices[flame_visible_idx, :]
-        # ic(visible_vertices.shape)
-        # with open('./debug/visibility.obj', 'w') as fp:
-        #     for v in visible_vertices:
-        #         fp.write('v %f %f %f\n' % (v[0], v[1], v[2]))
-        # exit()
         return flame_visible_idx
-
-    #     # ic(visible_vertices.shape)
-    #     # with open('./debug/flame_arkit/visible_vertices.obj', 'w') as fp:
-    #     #     for v in visible_vertices:
-    #     #         fp.write('v %f %f %f\n' % (v[0], v[1], v[2]))
-    #     # exit()
-    #     if upsampleFlag:
-    #         visible_idx_list = flame_visible_idx.tolist()
-    #         visible_face = []
-    #         for i in range(self.face_upsample.shape[0]):
-    #             faceOne = self.face_upsample[i]
-    #             if (faceOne[0] in visible_idx_list) and (faceOne[1] in visible_idx_list) and (
-    #                     faceOne[2] in visible_idx_list):
-    #                 visible_face.append(faceOne)
-    #         visible_upsample_trianlge = np.array(visible_face)
-    #         return flame_visible_idx, visible_upsample_trianlge
-    #     else:
-    #         return flame_visible_idx
