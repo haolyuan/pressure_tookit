@@ -2,6 +2,7 @@ import os
 import os.path as osp
 import numpy as np
 import smplx
+import torch
 import trimesh
 from icecream import ic
 
@@ -11,12 +12,12 @@ from lib.fitSMPL.Camera import RGBDCamera
 from lib.fitSMPL.SMPLModel import SMPLModel
 
 def main(**args):
-    # m_smpl = SMPLModel(
-    #     model_path=args.get('model_folder'),
-    #      num_betas=args.get('num_shape_comps'),
-    #      gender=args.get('model_gender'),
-    # )
-    # exit()
+    m_smpl = SMPLModel(
+        model_path=args.get('model_folder'),
+         num_betas=args.get('num_shape_comps'),
+         gender=args.get('model_gender'),
+    )
+
     m_data = PressureDataset(
         basdir=args.get('basdir'),
         dataset_name=args.get('dataset'),
@@ -30,7 +31,6 @@ def main(**args):
         sub_ids=args.get('sub_ids'),
         seq_name=args.get('seq_name'),
     )
-
 
     frame_data = m_data.getFrameData(ids=13)
     pointCloud = (m_cam.calcDepth3D(frame_data['depth_map'])).reshape([-1,3])

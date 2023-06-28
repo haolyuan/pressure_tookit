@@ -3,8 +3,12 @@ import pickle
 import torch
 import torch.nn as nn
 import os.path as osp
+import trimesh
 from smplx.utils import Struct,to_np, to_tensor
+from smplx.lbs import batch_rodrigues,batch_rigid_transform
 from icecream import ic
+
+from lib.Utils.fileio import saveJointsAsOBJ
 
 class SMPLModel(nn.Module):
     NUM_JOINTS = 23
@@ -24,7 +28,8 @@ class SMPLModel(nn.Module):
             data_struct = Struct(**pickle.load(smpl_file,
                                                encoding='latin1'))
 
-        self._num_betas = num_betas
+        self.dtype = dtype
+        self.num_betas = num_betas
         self.faces = data_struct.f
 
         shapedirs = data_struct.shapedirs
@@ -45,15 +50,53 @@ class SMPLModel(nn.Module):
         self.register_buffer('lbs_weights', lbs_weights)
 
         #SMPL Parameter
-        betas = torch.zeros([self.num_betas], dtype=dtype)
-        self.register_parameter('betas', nn.Parameter(betas, requires_grad=True))
-        body_pose = torch.zeros([self.NUM_JOINTS*3], dtype=dtype)
+        betas = torch.zeros([1, self.num_betas+1], dtype=dtype)# scale and betas
+        betas[0] = 1
+        self.register_parameter('betas',nn.Parameter(betas, requires_grad=False))
+        body_pose = torch.zeros([1,self.NUM_JOINTS*3], dtype=dtype)
         self.register_parameter('body_pose', nn.Parameter(body_pose, requires_grad=True))
-        transl = torch.zeros([4,],dtype=dtype,requires_grad=True)#transl+scale
+        transl = torch.zeros([1,3],dtype=dtype)
         self.register_parameter('transl', nn.Parameter(transl, requires_grad=True))
-        global_orient = torch.zeros([3,],dtype=dtype,requires_grad=True)
-        self.register_parameter('global_orient', global_orient)
+        global_orient = torch.zeros([1,3],dtype=dtype)
+        self.register_parameter('global_orient', nn.Parameter(global_orient, requires_grad=True))
+
+    def updateShape(self, betas):
+        blend_shape = torch.einsum('bl,mkl->bmk', [betas[:,1:], self.shapedirs])
+        v_shaped = self.v_template + blend_shape
+        v_shaped *= betas[:,0]
+        J_shaped = self.vertices2joints(self.J_regressor, v_shaped)
+        return v_shaped,J_shaped
+
+    def vertices2joints(self, J_regressor, vertices):
+        return torch.einsum('bik,ji->bjk', [vertices, J_regressor])
+
+    def updatePose(self,v_shaped,J,body_pose,global_orient,batch_size=1):
+        full_pose = torch.cat([global_orient, body_pose], dim=1)
+        device = v_shaped.device
+
+        rot_mats = batch_rodrigues(full_pose.view(-1, 3)).view(
+            [batch_size, -1, 3, 3])
+        J_transformed, A = batch_rigid_transform(rot_mats, J,
+                                                 self.parents, dtype=self.dtype)
+        W = self.lbs_weights.unsqueeze(dim=0).expand([batch_size, -1, -1])
+        num_joints = self.NUM_BODY_JOINTS+1
+
+        T = torch.matmul(W, A.view(batch_size, num_joints, 16)) \
+            .view(batch_size, -1, 4, 4)
+
+        homogen_coord = torch.ones([batch_size, v_shaped.shape[1], 1],
+                                   dtype=self.dtype, device=device)
+        v_posed_homo = torch.cat([v_shaped, homogen_coord], dim=2)
+        v_homo = torch.matmul(T, torch.unsqueeze(v_posed_homo, dim=-1))
+
+        verts = v_homo[:, :, :3, 0]
+        return verts, J_transformed
+
+    def initShape(self,depth_scan,keypoints):
+        v_shaped, J_shaped = m_smpl.updateShape(betas=beta)
+        verts, _ = self.updatePose(v_shaped, J_shaped, body_pose, global_orient)
+
+        # trimesh.Trimesh(vertices=v_shaped.detach().cpu().numpy()[0],
+        #                 faces=self.faces, process=False).export('debug/v_shaped.obj')
 
 
-    def initShape(self):
-        ic()

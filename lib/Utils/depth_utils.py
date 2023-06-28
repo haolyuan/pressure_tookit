@@ -43,7 +43,7 @@ def calculateFloorNormal(depth_path, xy,fx,fy,cx,cy, save_path=None):
     depth_map = imageio.imread(depth_path).astype(np.float32) / 1000.  # (576,640)
     pointCloud = depth2PointCloud(depth_map,fx,fy,cx,cy)  # (576,640,3)
     depth_slices = (pointCloud[xy[0]:xy[1], xy[2]:xy[3], :]).reshape([-1, 3])
-    trimesh.Trimesh(vertices=depth_slices,process=False).export('debug/depth_slice.obj')
+    # trimesh.Trimesh(vertices=depth_slices,process=False).export('debug/depth_slice.obj')
     A = depth_slices
     b = -1 * np.ones(depth_slices.shape[0])
     ATA, ATb = A.T @ A, A.T @ b
@@ -64,9 +64,9 @@ def calculateFloorNormal(depth_path, xy,fx,fy,cx,cy, save_path=None):
         }
         np.save(save_path, results)
 
-    pointCloud = pointCloud.reshape([-1,3])
-    depth_slices_RT = (floor_rot[:3, :3] @ pointCloud.T + floor_trans.reshape([3, 1])).T
-    trimesh.Trimesh(vertices=depth_slices_RT, process=False).export('debug/depth_slice_rot.obj')
+    # pointCloud = pointCloud.reshape([-1,3])
+    # depth_slices_RT = (floor_rot[:3, :3] @ pointCloud.T + floor_trans.reshape([3, 1])).T
+    # trimesh.Trimesh(vertices=depth_slices_RT, process=False).export('debug/depth_slice_rot.obj')
 
     return floor_normal, floor_trans, depth2floor
 

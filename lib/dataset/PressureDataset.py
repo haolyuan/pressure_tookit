@@ -27,11 +27,15 @@ class PressureDataset(Dataset):
 
         #read floor
         floor_path = osp.join(self.basdir, self.dataset_name, self.sub_ids, 'MoCap/Floor_'+self.seq_name[6:]+'.npy')
-        floor_info = np.load(floor_path, allow_pickle=True)
+        floor_info = np.load(floor_path, allow_pickle=True).item()
         self.floor_trans = floor_info['trans']
         self.floor_normal = floor_info['normal']
         self.depth2floor = floor_info['depth2floor']
 
+    def mapDepth2Floor(self,pointCloud):
+        pointCloud = pointCloud.reshape([-1,3])
+        depth_slices_RT = (self.depth2floor[:3, :3] @ pointCloud.T + self.depth2floor.reshape([3, 1])).T
+        return depth_slices_RT
 
     def getFrameData(self,ids):
         #read rgbd
