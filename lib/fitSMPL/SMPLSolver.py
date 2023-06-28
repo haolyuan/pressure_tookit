@@ -48,10 +48,10 @@ class SMPLSolver():
         self.m_smpl.setPose(**params_dict)
         self.m_smpl.updateShape()
         verts, J_transformed = self.m_smpl.updatePose()
-        # trimesh.Trimesh(vertices=verts.detach().cpu().numpy()[0],
-        #                 faces=self.m_smpl.faces, process=False).export('debug/smpl_init.obj')
+        init_model = trimesh.Trimesh(vertices=verts.detach().cpu().numpy()[0],
+                        faces=self.m_smpl.faces, process=False)
 
-        self.depth_term.findLiveVisibileVerticesIndex()
+        self.depth_term.findLiveVisibileVerticesIndex(init_model,floor2depth)
 
         exit()
 
@@ -66,10 +66,3 @@ class SMPLSolver():
         ic(depth_scan.shape)
         depth_scan = torch.tensor(depth_scan)
         ic(self.m_smpl.betas ,self.m_smpl.body_pose ,self.m_smpl.transl ,self.m_smpl.global_orient)
-        exit()
-        # v_shaped, J_shaped = self.updateShape(betas=beta)
-        # verts, _ = self.updatePose(v_shaped, J_shaped, body_pose, global_orient)
-
-        # trimesh.Trimesh(vertices=v_shaped.detach().cpu().numpy()[0],
-        #                 faces=self.faces, process=False).export('debug/v_shaped.obj')
-
