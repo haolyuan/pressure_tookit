@@ -1,0 +1,9 @@
+# Flags for data set and data dirs
+dataset: 'PressureDataset'
+basdir: 'E:/dataset'
+sub_ids: 'S12'
+seq_name: 'MoCap_20230422_145333'
+output_dir: 'output'
+
+num_shape_comps: 10
+model_gender: 'male'
