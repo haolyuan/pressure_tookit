@@ -54,7 +54,9 @@ class SMPLModel(nn.Module):
         betas[:,0] = 1
         self.register_parameter('betas',nn.Parameter(betas, requires_grad=False))
         body_pose = torch.zeros([1,self.NUM_JOINTS*3], dtype=dtype)
-        self.register_parameter('body_pose', nn.Parameter(body_pose, requires_grad=True))
+        self.register_parameter('body_pose', nn.Parameter(body_pose, requires_grad=False))
+        body_poseZ = torch.zeros([1,32], dtype=dtype)
+        self.register_parameter('body_poseZ', nn.Parameter(body_poseZ, requires_grad=True))
         transl = torch.zeros([1,3],dtype=dtype)
         self.register_parameter('transl', nn.Parameter(transl, requires_grad=True))
         global_orient = torch.zeros([1,3],dtype=dtype)
@@ -72,8 +74,10 @@ class SMPLModel(nn.Module):
     def vertices2joints(self, J_regressor, vertices):
         return torch.einsum('bik,ji->bjk', [vertices, J_regressor])
 
-    def updatePose(self,batch_size=1):#v_shaped,J,body_pose,global_orient,
-        full_pose = torch.cat([self.global_orient, self.body_pose], dim=1)
+    def updatePose(self,body_pose=None,batch_size=1):#v_shaped,J,body_pose,global_orient,
+        if body_pose == None:
+            body_pose = self.body_pose
+        full_pose = torch.cat([self.global_orient, body_pose], dim=1)
         device = self.v_shaped.device
 
         rot_mats = batch_rodrigues(full_pose.view(-1, 3)).view(
