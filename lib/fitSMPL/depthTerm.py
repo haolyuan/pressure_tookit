@@ -13,8 +13,17 @@ from lib.visualizer.renderer import modelRender
 from lib.Utils.depth_utils import depth2PointCloud#(depth_map,fx,fy,cx,cy)
 
 class DepthTerm(nn.Module):
-    def __init__(self,cam_intr,img_W,img_H,dtype,device):
+    def __init__(self,depth2color=None,
+                 depth2floor=None,
+                 cam_intr=None,
+                 img_W=640,img_H=576,
+                 dtype=np.float32,
+                 device='cpu'):
         super(DepthTerm, self).__init__()
+        self.depth2floor = depth2floor
+        self.floor2depth = np.linalg.inv(depth2floor)
+        self.depth2color = depth2color
+
         self.cam_intr = cam_intr #fx,fy,cx,cy
         self.img_W = img_W
         self.img_H = img_H
@@ -78,13 +87,13 @@ class DepthTerm(nn.Module):
         return smpl_visible_idx,indices_corr
 
     def calcDepthLoss(self,depth_vmap=None, depth_nmap=None,
-                      live_verts=None,faces=None,floor2depth=None):
+                      live_verts=None,faces=None):
         live_verts_cpu = live_verts.detach().cpu().numpy()[0]
         # live_mesh = trimesh.Trimesh(vertices=live_verts_cpu,
         #                 faces=faces, process=False)
         smpl_ids,depth_ids = self.findDepthCorrs(depth_vmap=depth_vmap, depth_nmap=depth_nmap,
                                                  live_verts=live_verts_cpu,faces=faces,
-                                                 floor2depth=floor2depth)
+                                                 floor2depth=self.floor2depth)
 
         depth_vmap = torch.tensor(depth_vmap,dtype=self.dtype,device=self.device)
         # depth_nmap = torch.tensor(depth_nmap,dtype=self.dtype,device=self.device)

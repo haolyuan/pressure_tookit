@@ -17,12 +17,16 @@ class SMPLSolver():
                  gender: str = 'neutral',
                  color_size=None,depth_size=None,
                  cIntr=None,dIntr=None,
+                 depth2floor=None,depth2color=None,
                  device=None,
                  dtype=torch.float32):
         super(SMPLSolver, self).__init__()
 
         self.device = device
         self.dtype = dtype
+        self.depth2floor = depth2floor
+        self.floor2depth = np.linalg.inv(depth2floor)
+        self.depth2color = depth2color
 
         vp, ps = load_model(expr_dir='E:/bodyModels/V02_05', model_code=VPoser,
                             remove_words_in_model_weights='vp_model.',
@@ -36,18 +40,23 @@ class SMPLSolver():
             gender=gender)
         self.m_smpl.to(device)
 
-
-        self.depth_term = DepthTerm(dIntr,depth_size[0],depth_size[1],
+        self.depth_term = DepthTerm(cam_intr=dIntr,
+                                    img_W=depth_size[0],
+                                    img_H=color_size[1],
+                                    depth2color=self.depth2color,
+                                    depth2floor=self.depth2floor,
+                                    dtype=self.dtype,device=self.device)
+        self.color_term = DepthTerm(cam_intr=cIntr,
+                                    img_W=color_size[0],
+                                    img_H=color_size[1],
+                                    depth2color=self.depth2color,
+                                    depth2floor=self.depth2floor,
                                     dtype=self.dtype,device=self.device)
 
     def initShape(self,
                   depth_vmap=None,depth_nmap=None,
-                  depth2floor=None,depth2color=None,
                   color_img=None,keypoints=None,
-                  max_iter=2000):
-
-        floor2depth = np.linalg.inv(depth2floor)
-
+                  max_iter=1000):
         #==========set smpl params====================
         betas = np.zeros([1,11])
         betas[:,0] = 0.78
@@ -71,9 +80,6 @@ class SMPLSolver():
         self.m_smpl.setPose(**params_dict)
         # self.m_smpl.updateShape()
         # live_verts, J_transformed = self.m_smpl.updatePose()
-        # self.m_smpl.updateShape()
-        # live_verts, J_transformed = self.m_smpl.updatePose()
-        #
         # trimesh.Trimesh(vertices=live_verts.detach().cpu().numpy()[0],
         #                 faces=self.m_smpl.faces, process=False).export('debug/live_mesh_vposer.obj')
         # exit()
@@ -98,8 +104,7 @@ class SMPLSolver():
             live_verts, J_transformed = self.m_smpl.updatePose(body_pose=body_pose_rec)
             depth_loss = self.depth_term.calcDepthLoss(
                 depth_vmap=depth_vmap, depth_nmap=depth_nmap,
-                live_verts=live_verts, faces=self.m_smpl.faces,
-                floor2depth=floor2depth)*w_verts3d
+                live_verts=live_verts, faces=self.m_smpl.faces)*w_verts3d
             betas_reg_loss = torch.square(self.m_smpl.betas).mean() * w_betas
             # lms2d_loss = self.calcLmks2dLoss_colormap(lmsDet2d, cIntr, Td2c, w_lms2d)
             loss_geo = depth_loss + betas_reg_loss

@@ -36,6 +36,8 @@ def main(**args):
         gender=args.get('model_gender'),
         color_size=args.get('color_size'), depth_size=args.get('depth_size'),
         cIntr=m_cam.cIntr_cpu, dIntr=m_cam.dIntr_cpu,
+        depth2floor=m_data.depth2floor,
+        depth2color=m_cam.d2c_cpu,
         device=device
     )
 
@@ -43,8 +45,6 @@ def main(**args):
     dv_valid,dn_valid = m_cam.preprocessDepth(frame_data['depth_map'],frame_data['mask'])
     dv_floor,dn_normal = m_data.mapDepth2Floor(dv_valid,dn_valid)
     m_solver.initShape(depth_vmap=dv_floor,depth_nmap=dn_normal,
-                       depth2floor=m_data.depth2floor,
-                       depth2color=m_cam.d2c_cpu,
                        color_img=frame_data['img'],
                        keypoints=None)
 
