@@ -21,3 +21,21 @@ def saveJointsAsOBJ(filename, joints,parents):
             fp.write('v %f %f %f\n' % (joint[0],joint[1],joint[2]))
         for pi in range(1,parents.shape[0]):
             fp.write('l %d %d\n' % (pi+1,parents[pi]+1))
+
+def saveNormalsAsOBJ(filename, verts, normals,ratio=0.2):
+    with open(filename, 'w') as fp:
+        for vi in range(verts.shape[0]):
+            fp.write('v %f %f %f\n' % (verts[vi,0],verts[vi,1],verts[vi,2]))
+            fp.write('v %f %f %f\n' % (verts[vi,0]+ratio*normals[vi,0],
+                                       verts[vi,1]+ratio*normals[vi,1],
+                                       verts[vi,2]+ratio*normals[vi,2]))
+        for li in range(verts.shape[0]):
+            fp.write('l %d %d\n' % (2*li+1,2*li+2))
+
+def saveCorrsAsOBJ(filename, verts_src, tar_verts):
+        with open(filename, 'w') as fp:
+            for vi in range(verts_src.shape[0]):
+                fp.write('v %f %f %f\n' % (verts_src[vi, 0], verts_src[vi, 1], verts_src[vi, 2]))
+                fp.write('v %f %f %f\n' % (tar_verts[vi, 0], tar_verts[vi, 1], tar_verts[vi, 2]))
+            for li in range(verts_src.shape[0]):
+                fp.write('l %d %d\n' % (2*li + 1, 2*li+2))

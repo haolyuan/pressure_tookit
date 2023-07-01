@@ -32,10 +32,12 @@ class PressureDataset(Dataset):
         self.floor_normal = floor_info['normal']
         self.depth2floor = floor_info['depth2floor']
 
-    def mapDepth2Floor(self,pointCloud):
+    def mapDepth2Floor(self,pointCloud,depth_normal):
         pointCloud = pointCloud.reshape([-1,3])
         depth_floor = (self.depth2floor[:3, :3] @ pointCloud.T + self.depth2floor[:3, 3].reshape([3, 1])).T
-        return depth_floor
+        if depth_normal is not None:
+            depth_normal = (self.depth2floor[:3, :3] @ depth_normal.T).T
+        return depth_floor, depth_normal
 
     def getFrameData(self,ids):
         #read rgbd

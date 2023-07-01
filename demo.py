@@ -10,6 +10,7 @@ from lib.config.config import parse_config
 from lib.dataset.PressureDataset import PressureDataset
 from lib.fitSMPL.Camera import RGBDCamera
 from lib.fitSMPL.SMPLSolver import SMPLSolver
+from lib.Utils.fileio import saveNormalsAsOBJ
 
 def main(**args):
     device = torch.device('cuda') if torch.cuda.is_available() \
@@ -38,13 +39,14 @@ def main(**args):
         device=device
     )
 
-
-
-
     frame_data = m_data.getFrameData(ids=13)
     dv_valid,dn_valid = m_cam.preprocessDepth(frame_data['depth_map'],frame_data['mask'])
-    depth_floor = m_data.mapDepth2Floor(dv_valid)
-    m_solver.initShape(m_data.depth2floor,depth_floor, keypoints=None)
+    dv_floor,dn_normal = m_data.mapDepth2Floor(dv_valid,dn_valid)
+    m_solver.initShape(depth_vmap=dv_floor,depth_nmap=dn_normal,
+                       depth2floor=m_data.depth2floor,
+                       depth2color=m_cam.d2c_cpu,
+                       color_img=frame_data['img'],
+                       keypoints=None)
 
 
 if __name__ == "__main__":
