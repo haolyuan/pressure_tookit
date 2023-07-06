@@ -1,5 +1,24 @@
+import cv2
+import json,pickle
 from icecream import ic
 
+def read_json(filename):
+    with open(filename) as file:
+        data = json.load(file)
+    return data
+
+def save_json(filename,data):
+    with open(filename,'w') as f:
+        json.dump(data, f)
+
+def read_pkl(filename):
+    return pickle.load(open(filename, 'rb'))
+
+def save_pkl(filename,data):
+    file = open(filename,'wb')
+    pickle.dump(data,file)
+
+#==============================OBJ Saver==============================
 def saveOBJ(filename,model):
     with open(filename, 'w') as fp:
         if 'v' in model and model['v'].size != 0:
@@ -39,3 +58,40 @@ def saveCorrsAsOBJ(filename, verts_src, tar_verts):
                 fp.write('v %f %f %f\n' % (tar_verts[vi, 0], tar_verts[vi, 1], tar_verts[vi, 2]))
             for li in range(verts_src.shape[0]):
                 fp.write('l %d %d\n' % (2*li + 1, 2*li+2))
+
+#==============================Image Saver==============================
+def saveProjectedJoints(filename=None,img=None,joint_projected=None):
+    for i in range(joint_projected.shape[0]):
+        x = joint_projected[i, 0]
+        y = joint_projected[i, 1]
+        color_img = cv2.putText(color_img, f"{i}", (int(x), int(y)),
+                          cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255))
+        color_img = cv2.circle(color_img, (int(x), int(y)), 1, (0, 0, 255), 0)
+    cv2.imwrite(filename,img)
+
+#==============================Video Saver==============================
+def get_physcap_dblfu_ours_compare():
+    img_width, img_height = 512*4,512
+    size = (img_width, img_height)
+    frame_range = [2121,2320]
+    fps = 10
+    fourcc = cv2.VideoWriter_fourcc(*"XVID")
+    data_name = 'dblfu_1018163852'
+    video_path = 'results/'+data_name+'_{}_{}.mp4'.format(frame_range[0] ,frame_range[1])
+    videoWrite = cv2.VideoWriter(video_path, fourcc, fps, size)
+
+    pbar = trange(frame_range[0], frame_range[1])
+    for i in pbar:
+        name_physcap = os.path.join('results/Physcap',data_name,'projected_smpl/%04d.png' % i)
+        img_physcap = cv2.imread(name_physcap)
+        name_dblfu = os.path.join('results/Dblfu',data_name,'projected_smpl/%04d.png' % i)
+        img_dblfu = cv2.imread(name_dblfu)
+        name_ours = os.path.join('results', data_name,'image_iter1/frame%04d_iter0.png' % i)
+        img_ours = cv2.imread(name_ours)
+        name_pybullet = os.path.join('results', data_name,'pybullet_iter1/%04d.png' % i)
+        img_pybullet = cv2.imread(name_pybullet)
+        img = np.concatenate([img_physcap,img_dblfu,img_ours,img_pybullet],axis=1)
+
+        videoWrite.write(img)
+    videoWrite.release()
+    ic('Free view video frame done!!')

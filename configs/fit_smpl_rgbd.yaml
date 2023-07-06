@@ -13,3 +13,8 @@ depth_size:
 
 num_shape_comps: 10
 model_gender: 'male'
+
+shape_weights: 0.01
+depth_weights: 1.0
+keypoint_weights: 0.001
+maxiters: 101

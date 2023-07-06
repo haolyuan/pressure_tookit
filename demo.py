@@ -4,6 +4,7 @@ import numpy as np
 import smplx
 import torch
 import trimesh
+import cv2
 from icecream import ic
 
 from lib.config.config import parse_config
@@ -30,6 +31,10 @@ def main(**args):
         seq_name=args.get('seq_name'),
     )
 
+    frame_data = m_data.getFrameData(ids=13)
+    dv_valid,dn_valid = m_cam.preprocessDepth(frame_data['depth_map'],frame_data['mask'])
+    dv_floor,dn_normal = m_data.mapDepth2Floor(dv_valid,dn_valid)
+
     m_solver = SMPLSolver(
         model_path=args.get('model_folder'),
         num_betas=args.get('num_shape_comps'),
@@ -38,15 +43,15 @@ def main(**args):
         cIntr=m_cam.cIntr_cpu, dIntr=m_cam.dIntr_cpu,
         depth2floor=m_data.depth2floor,
         depth2color=m_cam.d2c_cpu,
+        w_verts3d=args.get('depth_weights'),
+        w_betas=args.get('shape_weights'),
+        w_joint2d=args.get('keypoint_weights'),
         device=device
     )
-
-    frame_data = m_data.getFrameData(ids=13)
-    dv_valid,dn_valid = m_cam.preprocessDepth(frame_data['depth_map'],frame_data['mask'])
-    dv_floor,dn_normal = m_data.mapDepth2Floor(dv_valid,dn_valid)
     m_solver.initShape(depth_vmap=dv_floor,depth_nmap=dn_normal,
                        color_img=frame_data['img'],
-                       keypoints=None)
+                       keypoints=frame_data['kp'],
+                       max_iter=args.get('maxiters'))
 
 
 if __name__ == "__main__":

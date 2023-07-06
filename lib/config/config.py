@@ -68,7 +68,17 @@ def parse_config(argv=None):
                         help='The number of betas.')
     parser.add_argument('--model_gender', default='neutral', type=str,
                         help='The number of betas.')
-    #
+
+    # fitting / losses
+    parser.add_argument('--shape_weights', default=0.01,
+                        type=float, help='The weights of the Shape regularizer')
+    parser.add_argument('--depth_weights', default=1.0,
+                        type=float, help='The weights of the Depth')
+    parser.add_argument('--keypoint_weights', default=0.01,
+                        type=float, help='The weights of the Keypoints')
+    parser.add_argument('--maxiters', type=int, default=601,
+                        help='The maximum iterations for the optimization')
+
     # # segments
     # parser.add_argument('--part_segm_fn', default='', type=str,
     #                     help='The file with the part segmentation for the' +
@@ -231,8 +241,7 @@ def parse_config(argv=None):
     #                     help='The tolerance threshold for the gradient')
     # parser.add_argument('--ftol', type=float, default=2e-9,
     #                     help='The tolerance threshold for the function')
-    # parser.add_argument('--maxiters', type=int, default=100,
-    #                     help='The maximum iterations for the optimization')
+
     #
     # # cluster flags
     # parser.add_argument('--ds_start_idx', type=int, default=0,
