@@ -4,6 +4,7 @@ import scipy
 import trimesh
 import torch.nn as nn
 import cv2
+import os.path as osp
 import trimesh
 import math
 import numpy as np
@@ -11,6 +12,8 @@ from icecream import ic
 
 from lib.visualizer.renderer import modelRender
 from lib.Utils.depth_utils import depth2PointCloud#(depth_map,fx,fy,cx,cy)
+from lib.Utils.fileio import saveCorrsAsOBJ
+
 
 class DepthTerm(nn.Module):
     def __init__(self,depth2color=None,
@@ -86,7 +89,7 @@ class DepthTerm(nn.Module):
         # exit()
         return smpl_visible_idx,indices_corr
 
-    def calcDepthLoss(self,depth_vmap=None, depth_nmap=None,
+    def calcDepthLoss(self,iter=0,depth_vmap=None, depth_nmap=None,
                       live_verts=None,faces=None):
         live_verts_cpu = live_verts.detach().cpu().numpy()[0]
         # live_mesh = trimesh.Trimesh(vertices=live_verts_cpu,
@@ -99,7 +102,14 @@ class DepthTerm(nn.Module):
         # depth_nmap = torch.tensor(depth_nmap,dtype=self.dtype,device=self.device)
         smpl_ids = torch.tensor(smpl_ids,device=self.device).long()
         depth_ids = torch.tensor(depth_ids,device=self.device).long()
-        delta = (live_verts[0,smpl_ids,:]-depth_vmap[depth_ids,:])
+        src_verts = live_verts[0,smpl_ids,:]
+        tar_verts = depth_vmap[depth_ids,:]
+        delta = src_verts-tar_verts
         dist = torch.norm(delta, dim=-1)
         depth_loss = torch.mean(dist,dim=0)
+
+        # if iter % 100 == 0:
+        #     saveCorrsAsOBJ('debug/MoCap_20230422_145422/%04d_corrs.obj' % iter,
+        #                    src_verts.detach().cpu().numpy(), tar_verts.detach().cpu().numpy())
         return depth_loss
+

@@ -58,7 +58,10 @@ def parse_config(argv=None):
                         default=[640,576], type=int,
                         nargs='*',
                         help='Color size')
-
+    parser.add_argument('--frame_range',
+                        default=[0,10], type=int,
+                        nargs='*',
+                        help='frame range')
     # body model model
     parser.add_argument('--model_folder',
                         default='../../bodyModels/smpl',
@@ -69,7 +72,11 @@ def parse_config(argv=None):
     parser.add_argument('--model_gender', default='neutral', type=str,
                         help='The number of betas.')
 
-    # fitting / losses
+    # fitting / losses   init_model
+    parser.add_argument('--init_model',
+                        default=False,
+                        type=lambda x: x.lower() in ['true', '1'],
+                        help='init or tracking')
     parser.add_argument('--shape_weights', default=0.01,
                         type=float, help='The weights of the Shape regularizer')
     parser.add_argument('--depth_weights', default=1.0,

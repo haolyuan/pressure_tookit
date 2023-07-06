@@ -1,4 +1,5 @@
 import torch
+import copy
 import trimesh
 import torch.nn as nn
 import cv2
@@ -38,8 +39,8 @@ class ColorTerm(nn.Module):
         self.depth2floor = depth2floor
         self.floor2depth = np.linalg.inv(depth2floor)
         self.depth2color = depth2color
-        floor2color = self.depth2color @ self.floor2depth
-        self.floor2color = torch.tensor(floor2color,dtype=torch.float32,device=device)
+        self.floor2color_cpu = self.depth2color @ self.floor2depth
+        self.floor2color = torch.tensor(self.floor2color_cpu,dtype=torch.float32,device=device)
         self.cam_intr = cam_intr #fx,fy,cx,cy
         self.img_W = img_W
         self.img_H = img_H
@@ -64,17 +65,26 @@ class ColorTerm(nn.Module):
 
         self.robustifier = GMoF(rho=rho)
 
+        self.renderer = modelRender(cam_intr, img_W, img_H)
+
+
     def get_joint_weights(self):
         # The weights for the joint terms in the optimization
         optim_weights = np.ones(25,dtype=np.float32)
         # These joints are ignored becaue SMPL has no neck.
         optim_weights[1] = 0.
         # put higher weights on knee and elbow joints for mimic'ed poses
-        optim_weights[[3,6,10,13]] = 2
+        optim_weights[[3,6,10,13,4,7]] = 2
         return torch.tensor(optim_weights, dtype=self.dtype,device=self.device)
 
     def get_model2data(self):
         return self.smpl2kp
+
+    def renderMesh(self, mesh, img=None):
+        mesh.apply_transform(self.floor2color_cpu)
+        color_render, depth = self.renderer.render(mesh,img=img)
+        # cv2.imwrite('debug/test.png',color_render)
+        return color_render, depth
 
     def projectJoints(self, points):
         device = points.device
