@@ -23,6 +23,7 @@ def drawkeppoints(
         img_path=None,
         kp_path=None,
         bone_thick=2,
+        joint_thick=1,
         draw_joints=False,
         joint_color=rgb_code['Red'],
         bone_color=rgb_code['Cyan']):
@@ -35,29 +36,6 @@ def drawkeppoints(
     face_keypoints_2d = np.array(keypoints['face_keypoints_2d']).reshape([-1, 3])
     hand_left_keypoints_2d = np.array(keypoints['hand_left_keypoints_2d']).reshape([-1, 3])
     hand_right_keypoints_2d = np.array(keypoints['hand_right_keypoints_2d']).reshape([-1, 3])
-
-    if draw_joints:
-        for i in range(pose_keypoints_2d.shape[0]):
-            x =pose_keypoints_2d[i,0]
-            y =pose_keypoints_2d[i,1]
-            conf =pose_keypoints_2d[i,2]
-            img = cv2.putText(img, f"{i},{conf}", (int(x), int(y)),
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (joint_color[2],joint_color[1],joint_color[0]))
-            img = cv2.circle(img, (int(x), int(y)), 1, (0,0,255),0)
-        for i in range(hand_left_keypoints_2d.shape[0]):
-            x =hand_left_keypoints_2d[i,0]
-            y =hand_left_keypoints_2d[i,1]
-            conf =hand_left_keypoints_2d[i,2]
-            img = cv2.putText(img, f"{i}", (int(x), int(y)),
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (joint_color[2],joint_color[1],joint_color[0]))
-            img = cv2.circle(img, (int(x), int(y)), 1, (0,0,255),0)
-        for i in range(hand_right_keypoints_2d.shape[0]):
-            x =hand_right_keypoints_2d[i,0]
-            y =hand_right_keypoints_2d[i,1]
-            conf =hand_right_keypoints_2d[i,2]
-            img = cv2.putText(img, f"{i}", (int(x), int(y)),
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (joint_color[2],joint_color[1],joint_color[0]))
-            img = cv2.circle(img, (int(x), int(y)), 1, (0,0,255),0)
 
     for line in parents['body']:
         start_ids, end_ids = line
@@ -103,11 +81,35 @@ def drawkeppoints(
         conf = face_keypoints_2d[i, 2]
         img = cv2.circle(img, (int(x), int(y)), 2, (bone_color[2], bone_color[1], bone_color[0]), -1)
 
+
+    if draw_joints:
+        for i in range(pose_keypoints_2d.shape[0]):
+            x =pose_keypoints_2d[i,0]
+            y =pose_keypoints_2d[i,1]
+            conf =pose_keypoints_2d[i,2]
+            img = cv2.putText(img, f"{i}", (int(x), int(y)),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (joint_color[2],joint_color[1],joint_color[0]))
+            img = cv2.circle(img, (int(x), int(y)), joint_thick, (0,0,255),0)
+        # for i in range(hand_left_keypoints_2d.shape[0]):
+        #     x =hand_left_keypoints_2d[i,0]
+        #     y =hand_left_keypoints_2d[i,1]
+        #     conf =hand_left_keypoints_2d[i,2]
+        #     img = cv2.putText(img, f"{i}", (int(x), int(y)),
+        #                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, (joint_color[2],joint_color[1],joint_color[0]))
+        #     img = cv2.circle(img, (int(x), int(y)), joint_thick, (0,0,255),0)
+        # for i in range(hand_right_keypoints_2d.shape[0]):
+        #     x =hand_right_keypoints_2d[i,0]
+        #     y =hand_right_keypoints_2d[i,1]
+        #     conf =hand_right_keypoints_2d[i,2]
+        #     img = cv2.putText(img, f"{i}", (int(x), int(y)),
+        #                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, (joint_color[2],joint_color[1],joint_color[0]))
+        #     img = cv2.circle(img, (int(x), int(y)), joint_thick, (0,0,255),0)
+
     return img
 
 
 if __name__ =='__main__':
-    basdir = 'E:/dataset/PressureDataset/S12/RGBD/MoCap_20230422_145422'
+    basdir = 'E:/dataset/PressureDataset/S12/RGBD/MoCap_20230422_145333'
     for i in trange(1,160):
         img_fn = 'frame_%d'%i
         img_path = osp.join(basdir,'color/%s.png'%img_fn)

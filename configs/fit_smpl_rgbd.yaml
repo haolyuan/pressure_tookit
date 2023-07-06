@@ -15,6 +15,6 @@ num_shape_comps: 10
 model_gender: 'male'
 
 shape_weights: 0.01
-depth_weights: 1.0
-keypoint_weights: 0.001
+depth_weights: 10.0
+keypoint_weights: 0.0001
 maxiters: 101

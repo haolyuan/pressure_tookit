@@ -1,15 +1,18 @@
 import torch
 import trimesh
 import numpy as np
+import copy
 from tqdm import trange,tqdm
 from human_body_prior.tools.model_loader import load_model
 from human_body_prior.models.vposer_model import VPoser
+from smplx.vertex_joint_selector import VertexJointSelector
+from smplx.vertex_ids import vertex_ids as VERTEX_IDS
 from icecream import ic
 
 from lib.fitSMPL.SMPLModel import SMPLModel
 from lib.fitSMPL.depthTerm import DepthTerm
 from lib.fitSMPL.colorTerm import ColorTerm
-from lib.Utils.fileio import saveJointsAsOBJ
+from lib.Utils.fileio import saveJointsAsOBJ,saveProjectedJoints
 
 class SMPLSolver():
     def __init__(self,
@@ -19,8 +22,8 @@ class SMPLSolver():
                  color_size=None,depth_size=None,
                  cIntr=None,dIntr=None,
                  depth2floor=None,depth2color=None,
-                 w_verts3d=1,
-                 w_betas=0.01,
+                 w_verts3d=10,
+                 w_betas=0.1,
                  w_joint2d=0.01,
                  device=None,
                  dtype=torch.float32):
@@ -60,6 +63,10 @@ class SMPLSolver():
                                     depth2color=self.depth2color,
                                     depth2floor=self.depth2floor,
                                     dtype=self.dtype,device=self.device)
+
+        vertex_ids = VERTEX_IDS['smplh']
+        self.vertex_joint_selector = VertexJointSelector(
+            vertex_ids=vertex_ids).to(device)
 
 
     def initShape(self,
@@ -116,12 +123,12 @@ class SMPLSolver():
                 live_verts=live_verts, faces=self.m_smpl.faces)*self.w_verts3d
 
             live_joints = self.m_smpl.vertices2joints(self.m_smpl.J_regressor,live_verts)
-            joint_loss = self.color_term.calcColorLoss(keypoints=None, points=live_joints[0])
-            exit()
+            joints = self.vertex_joint_selector(live_verts, live_joints)[0]
+            joint_loss = self.color_term.calcColorLoss(keypoints=keypoints, points=joints,img=color_img)*self.w_joint2d
 
             betas_reg_loss = torch.square(self.m_smpl.betas).mean() * self.w_betas
-            # lms2d_loss = self.calcLmks2dLoss_colormap(lmsDet2d, cIntr, Td2c, w_lms2d)
-            loss_geo = depth_loss + betas_reg_loss
+
+            loss_geo = depth_loss + betas_reg_loss + joint_loss
             rough_optimizer.zero_grad()
             loss_geo.backward()
             rough_optimizer.step()
@@ -129,6 +136,12 @@ class SMPLSolver():
             if iter % 100 == 0:
                 _verts = live_verts.detach().cpu().numpy()[0]
                 trimesh.Trimesh(vertices=_verts,faces=self.m_smpl.faces,process=False).export('debug/init_%04d.obj'%iter)
+                projected_joints = self.color_term.projectJoints(joints)
+                projected_joints = projected_joints.detach().cpu().numpy()
+                saveProjectedJoints(filename='debug/init_%04d.png'%iter,
+                                    img=copy.deepcopy(color_img),
+                                    joint_projected=projected_joints)
+
         annot = {}
         annot['global_orient'] = self.m_smpl.global_orient.detach().cpu().numpy()
         annot['transl'] = self.m_smpl.transl.detach().cpu().numpy()

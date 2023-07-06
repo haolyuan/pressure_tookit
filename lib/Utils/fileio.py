@@ -64,9 +64,9 @@ def saveProjectedJoints(filename=None,img=None,joint_projected=None):
     for i in range(joint_projected.shape[0]):
         x = joint_projected[i, 0]
         y = joint_projected[i, 1]
-        color_img = cv2.putText(color_img, f"{i}", (int(x), int(y)),
+        img = cv2.putText(img, f"{i}", (int(x), int(y)),
                           cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255))
-        color_img = cv2.circle(color_img, (int(x), int(y)), 1, (0, 0, 255), 0)
+        img = cv2.circle(img, (int(x), int(y)), 1, (0, 0, 255), 0)
     cv2.imwrite(filename,img)
 
 #==============================Video Saver==============================
