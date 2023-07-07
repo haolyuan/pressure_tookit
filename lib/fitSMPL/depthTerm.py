@@ -1,7 +1,6 @@
 import copy
 import torch
 import scipy
-import trimesh
 import torch.nn as nn
 import cv2
 import os.path as osp

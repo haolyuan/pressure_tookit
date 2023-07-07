@@ -1,6 +1,5 @@
 import torch
 import copy
-import trimesh
 import torch.nn as nn
 import cv2
 import trimesh

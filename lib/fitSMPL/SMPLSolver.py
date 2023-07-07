@@ -201,7 +201,7 @@ class SMPLSolver():
             #     for param_group in rough_optimizer.param_groups:
             #         param_group['lr'] = 0.0001
             #     w_lms2d =1e-1
-            pbar.set_description("Frame[%03d]:" % iter)
+            pbar.set_description("Frame[%03d]:" % frame_ids)
             amass_body_pose_rec = self.vp.decode(self.m_smpl.body_poseZ)['pose_body'].contiguous().view(-1, 63)
             body_pose_rec = torch.cat([amass_body_pose_rec, torch.zeros([1, 6], device=self.device)], dim=1)
             live_verts, J_transformed = self.m_smpl.updatePose(body_pose=body_pose_rec)
@@ -242,4 +242,3 @@ class SMPLSolver():
         annot['body_pose'] = body_pose_rec0.detach().cpu().numpy()
         annot['body_poseZ'] = self.m_smpl.body_poseZ.detach().cpu().numpy()
         np.save(osp.join(self.results_dir,'frame%04d_%04d.png'%(frame_ids,iter)),annot)
-        exit()

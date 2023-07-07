@@ -5,10 +5,11 @@ import os.path as osp
 import numpy as np
 import torch
 from torch.utils.data import Dataset
-import xml.etree.ElementTree as ET
+import pickle
+import glob
 from icecream import ic
 from lib.Utils.fileio import read_json
-
+from lib.dataset.insole_sync import insole_sync
 
 class PressureDataset(Dataset):
     def __init__(self,
@@ -31,6 +32,16 @@ class PressureDataset(Dataset):
         self.floor_trans = floor_info['trans']
         self.floor_normal = floor_info['normal']
         self.depth2floor = floor_info['depth2floor']
+
+        insole_name = insole_sync[self.sub_ids][seq_name]
+        insole_path = osp.join(self.basdir,self.dataset_name,self.sub_ids,'insole_pkl',insole_name+'.pkl')
+        with open(insole_path, "rb") as f:
+            insole_data = pickle.load(f)
+        # with open(insole_path.replace(".pkl", ".timestamps"), "rb") as f:
+        #     insole_timestamps = pickle.load(f)
+        indice_name = osp.join(self.basdir,self.dataset_name,self.sub_ids,'Synced_indice',insole_name+'*')
+        synced_indice = np.loadtxt(glob.glob(indice_name)[0]).astype(np.int32)
+        self.insole_data = insole_data[synced_indice]
 
     def mapDepth2Floor(self,pointCloud,depth_normal):
         pointCloud = pointCloud.reshape([-1,3])
@@ -70,8 +81,21 @@ class PressureDataset(Dataset):
             keypoints.append(body_keypoints)
         return keypoints
 
+    def show_insole(self,idx):
+        data = self.insole_data[idx]
+        press_dim,rows,cols = data.shape
+        img = np.ones((rows, cols * 2), dtype=np.uint8)
+        imgL = np.uint8(data[0] * 5)
+        imgR = np.uint8(data[1] * 5)
+        img[:, :imgL.shape[1]] = imgL
+        img[:, img.shape[1] - imgR.shape[1]:] = imgR
+        imgLarge = cv2.resize(img, (cols * 10 * 2, rows * 10))
+        imgColor = cv2.applyColorMap(imgLarge, cv2.COLORMAP_HOT)
+        cv2.imshow("img", imgColor)
+        cv2.waitKey(1)
+
     def getFrameData(self,ids):
-        #read rgbd
+        # read rgbd
         depth_path = osp.join(self.rgbddir,'depth/frame_%d.png'%ids)
         depth_map = imageio.imread(depth_path).astype(np.float32) / 1000.
         img_path = osp.join(self.rgbddir,'color/frame_%d.png'%ids)
@@ -85,10 +109,14 @@ class PressureDataset(Dataset):
         keypoints = self.read_keypoints(keypoint_fn)
         body_kp = keypoints[0][:25,:]
 
+        # read insole data
+        insole_data = self.insole_data[ids-1] #2,31,11
+
         output_dict = {'depth_map':depth_map,
                        'img': img,
                        'mask': mask,
-                       'kp':body_kp
+                       'kp':body_kp,
+                       'insole':insole_data,
                        }
         return output_dict
 
