@@ -9,7 +9,7 @@ from lib.fitSMPL.Camera import RGBDCamera
 from lib.fitSMPL.SMPLModel import SMPLModel
 from lib.fitSMPL.colorTerm import ColorTerm
 from lib.fitSMPL.pressureTerm import PressureTerm
-from lib.Utils.fileio import saveJointsAsOBJ
+from lib.Utils.fileio import saveJointsAsOBJ,saveImgSeqAsvideo
 
 
 def show_insole():
@@ -41,9 +41,10 @@ def show_insole():
     exit()
 
 if __name__ == '__main__':
-    show_insole()
+    saveImgSeqAsvideo('debug/insole2smpl')
+    exit()
     m_pt = PressureTerm()
-    m_pt.test()
+    m_pt.insole2smpl()
     exit()
     params = np.load('debug/init_param100.npy',allow_pickle=True).item()
     ic(params)

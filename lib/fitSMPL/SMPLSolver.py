@@ -123,14 +123,7 @@ class SMPLSolver():
                                             self.m_smpl.body_poseZ], lr=0.01)
 
         for iter in trange(max_iter):
-            # if iter==600:
-            #     for param_group in rough_optimizer.param_groups:
-            #         param_group['lr'] = 0.001
-            #     w_lms2d = 8e-2
-            # elif iter==1500:
-            #     for param_group in rough_optimizer.param_groups:
-            #         param_group['lr'] = 0.0001
-            #     w_lms2d =1e-1
+            self.adjust_learning_rate(rough_optimizer, iter)
             self.m_smpl.updateShape()
             amass_body_pose_rec = self.vp.decode(self.m_smpl.body_poseZ)['pose_body'].contiguous().view(-1, 63)
             body_pose_rec = torch.cat([amass_body_pose_rec, torch.zeros([1, 6], device=self.device)], dim=1)
@@ -197,10 +190,6 @@ class SMPLSolver():
         trimesh.Trimesh(vertices=depth_vmap,process=False).export(osp.join(self.results_dir,'frame%d_depth.obj'%frame_ids))
         for iter in pbar:
             self.adjust_learning_rate(optimizer, iter)
-            # elif iter==1500:
-            #     for param_group in rough_optimizer.param_groups:
-            #         param_group['lr'] = 0.0001
-            #     w_lms2d =1e-1
             pbar.set_description("Frame[%03d]:" % frame_ids)
             amass_body_pose_rec = self.vp.decode(self.m_smpl.body_poseZ)['pose_body'].contiguous().view(-1, 63)
             body_pose_rec = torch.cat([amass_body_pose_rec, torch.zeros([1, 6], device=self.device)], dim=1)

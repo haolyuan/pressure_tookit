@@ -1,3 +1,5 @@
+import os
+import os.path as osp
 import cv2
 import json,pickle
 from icecream import ic
@@ -70,28 +72,20 @@ def saveProjectedJoints(filename=None,img=None,joint_projected=None):
     cv2.imwrite(filename,img)
 
 #==============================Video Saver==============================
-def get_physcap_dblfu_ours_compare():
-    img_width, img_height = 512*4,512
+def saveImgSeqAsvideo(basdir,fps=30):
+    img_ls = sorted([x for x in os.listdir(basdir)
+                     if x.endswith('.png') or x.endswith('.jpg')])
+
+    img_width, img_height,_ = cv2.imread(osp.join(basdir,img_ls[0])).shape
     size = (img_width, img_height)
-    frame_range = [2121,2320]
-    fps = 10
-    fourcc = cv2.VideoWriter_fourcc(*"XVID")
-    data_name = 'dblfu_1018163852'
-    video_path = 'results/'+data_name+'_{}_{}.mp4'.format(frame_range[0] ,frame_range[1])
-    videoWrite = cv2.VideoWriter(video_path, fourcc, fps, size)
+    # fourcc = cv2.VideoWriter_fourcc(*"XVID")
+    # videoWrite = cv2.VideoWriter(video_path, fourcc, fps, size)
 
-    pbar = trange(frame_range[0], frame_range[1])
-    for i in pbar:
-        name_physcap = os.path.join('results/Physcap',data_name,'projected_smpl/%04d.png' % i)
-        img_physcap = cv2.imread(name_physcap)
-        name_dblfu = os.path.join('results/Dblfu',data_name,'projected_smpl/%04d.png' % i)
-        img_dblfu = cv2.imread(name_dblfu)
-        name_ours = os.path.join('results', data_name,'image_iter1/frame%04d_iter0.png' % i)
-        img_ours = cv2.imread(name_ours)
-        name_pybullet = os.path.join('results', data_name,'pybullet_iter1/%04d.png' % i)
-        img_pybullet = cv2.imread(name_pybullet)
-        img = np.concatenate([img_physcap,img_dblfu,img_ours,img_pybullet],axis=1)
+    video_path = osp.join(basdir,'video.mp4')
+    videoWrite = cv2.VideoWriter(video_path,cv2.VideoWriter_fourcc('m', 'p', '4', 'v'), fps, size)
 
+    for img_fn in img_ls:
+        img = cv2.imread(osp.join(basdir,img_fn))
         videoWrite.write(img)
     videoWrite.release()
     ic('Free view video frame done!!')
