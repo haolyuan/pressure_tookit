@@ -83,6 +83,10 @@ def parse_config(argv=None):
                         type=float, help='The weights of the Depth')
     parser.add_argument('--keypoint_weights', default=0.01,
                         type=float, help='The weights of the Keypoints')
+    parser.add_argument('--penetrate_weights', default=10.,
+                        type=float, help='The weights of the Keypoints')
+    parser.add_argument('--contact_weights', default=1.0,
+                        type=float, help='The weights of the Keypoints')
     parser.add_argument('--maxiters', type=int, default=601,
                         help='The maximum iterations for the optimization')
 

@@ -35,12 +35,12 @@ class PressureDataset(Dataset):
 
         self.insole_name = insole_sync[self.sub_ids][seq_name]
         if self.insole_name is not None:
-            insole_path = osp.join(self.basdir,self.dataset_name,self.sub_ids,'insole_pkl',insole_name+'.pkl')
+            insole_path = osp.join(self.basdir,self.dataset_name,self.sub_ids,'insole_pkl',self.insole_name+'.pkl')
             with open(insole_path, "rb") as f:
                 insole_data = pickle.load(f)
             # with open(insole_path.replace(".pkl", ".timestamps"), "rb") as f:
             #     insole_timestamps = pickle.load(f)
-            indice_name = osp.join(self.basdir,self.dataset_name,self.sub_ids,'Synced_indice',insole_name+'*')
+            indice_name = osp.join(self.basdir,self.dataset_name,self.sub_ids,'Synced_indice',self.insole_name+'*')
             synced_indice = np.loadtxt(glob.glob(indice_name)[0]).astype(np.int32)
             self.insole_data = insole_data[synced_indice]
 

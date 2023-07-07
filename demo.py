@@ -50,6 +50,8 @@ def main(**args):
         w_verts3d=args.get('depth_weights'),
         w_betas=args.get('shape_weights'),
         w_joint2d=args.get('keypoint_weights'),
+        w_penetrate=args.get('penetrate_weights'),
+        w_contact=args.get('contact_weights'),
         seq_name=args.get('seq_name'),
         device=device
     )
@@ -66,15 +68,17 @@ def main(**args):
         params_path = osp.join(args.get('basdir'), args.get('dataset'), args.get('sub_ids'),
                                'init_param100_w_pressure.npy')
         init_params = np.load(params_path,allow_pickle=True).item()
+        m_solver.setInitPose(init_params=init_params)
         frame_range = args.get('frame_range')
         for ids in range(frame_range[0],frame_range[1]+1):
             frame_data = m_data.getFrameData(ids=ids)
             dv_valid, dn_valid = m_cam.preprocessDepth(frame_data['depth_map'], frame_data['mask'])
             dv_floor, dn_normal = m_data.mapDepth2Floor(dv_valid, dn_valid)
             m_solver.modelTracking(
-                init_params=init_params,frame_ids=ids,
+                frame_ids=ids,
                 depth_vmap=dv_floor, depth_nmap=dn_normal,
                 color_img=frame_data['img'],keypoints=frame_data['kp'],
+                insole_data=frame_data['insole'],
                 max_iter=args.get('maxiters'))
 
 

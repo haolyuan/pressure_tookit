@@ -22,4 +22,6 @@ init_model: False
 shape_weights: 0.01
 depth_weights: 150.0
 keypoint_weights: 0.0005
+penetrate_weights: 80.0
+contact_weights: 50
 maxiters: 301

@@ -15,6 +15,7 @@ from icecream import ic
 from lib.fitSMPL.SMPLModel import SMPLModel
 from lib.fitSMPL.depthTerm import DepthTerm
 from lib.fitSMPL.colorTerm import ColorTerm
+from lib.fitSMPL.pressureTerm import PressureTerm
 from lib.Utils.fileio import saveJointsAsOBJ,saveProjectedJoints,saveCorrsAsOBJ
 
 class SMPLSolver():
@@ -25,9 +26,9 @@ class SMPLSolver():
                  color_size=None,depth_size=None,
                  cIntr=None,dIntr=None,
                  depth2floor=None,depth2color=None,
-                 w_verts3d=10,
+                 w_verts3d=10,w_joint2d=0.01,
                  w_betas=0.1,
-                 w_joint2d=0.01,
+                 w_penetrate=10,w_contact=0,
                  seq_name='debug',
                  device=None,
                  dtype=torch.float32):
@@ -54,6 +55,8 @@ class SMPLSolver():
         self.w_verts3d = w_verts3d
         self.w_betas = w_betas
         self.w_joint2d = w_joint2d
+        self.w_penetrate = w_penetrate
+        self.w_contact = w_contact
 
         self.depth_term = DepthTerm(cam_intr=dIntr,
                                     img_W=depth_size[0],
@@ -67,6 +70,7 @@ class SMPLSolver():
                                     depth2color=self.depth2color,
                                     depth2floor=self.depth2floor,
                                     dtype=self.dtype,device=self.device)
+        self.press_term = PressureTerm(device=self.device)
 
         footL_ids = np.loadtxt('essentials/footL_ids.txt').astype(np.int32)
         footR_ids = np.loadtxt('essentials/footR_ids.txt').astype(np.int32)
@@ -142,9 +146,9 @@ class SMPLSolver():
             joint_loss = self.color_term.calcColorLoss(keypoints=keypoints, points=joints,img=color_img)*self.w_joint2d
 
             betas_reg_loss = torch.square(self.m_smpl.betas).mean() * self.w_betas
-            contact_loss = torch.mean(torch.abs(live_verts[0,self.foot_ids,1]))*10
+            penetrate_loss = torch.mean(torch.abs(live_verts[0,self.foot_ids,1]))*self.w_penetrate #penetration
 
-            loss_geo = depth_loss + betas_reg_loss + joint_loss + contact_loss
+            loss_geo = depth_loss + betas_reg_loss + joint_loss + penetrate_loss
             rough_optimizer.zero_grad()
             loss_geo.backward()
             rough_optimizer.step()
@@ -168,14 +172,7 @@ class SMPLSolver():
         annot['body_poseZ'] = self.m_smpl.body_poseZ.detach().cpu().numpy()
         np.save('debug/init_param%d.npy'%iter,annot)
 
-
-
-    def modelTracking(self,
-                      init_params=None,frame_ids=0,
-                      depth_vmap=None,depth_nmap=None,
-                      color_img=None,keypoints=None,
-                      max_iter=1000):
-        #==========set smpl params====================
+    def setInitPose(self,init_params=None):
         betas = torch.tensor(init_params['betas'],dtype=self.dtype,device=self.device)
         transl = torch.tensor(init_params['transl'],dtype=self.dtype,device=self.device)
         body_pose = torch.tensor(init_params['body_pose'], dtype=self.dtype, device=self.device)
@@ -188,11 +185,23 @@ class SMPLSolver():
         }
         self.m_smpl.setPose(**params_dict)
         self.m_smpl.updateShape()
-        # ==========main loop====================
+        amass_body_pose_rec = self.vp.decode(self.m_smpl.body_poseZ)['pose_body'].contiguous().view(-1, 63)
+        body_pose_rec = torch.cat([amass_body_pose_rec, torch.zeros([1, 6], device=self.device)], dim=1)
+        live_verts, J_transformed = self.m_smpl.updatePose(body_pose=body_pose_rec)
+        self.press_term.setVertsPre(live_verts)
+
+    def modelTracking(self,
+                      frame_ids=0,
+                      depth_vmap=None,depth_nmap=None,
+                      color_img=None,keypoints=None,
+                      insole_data=None,
+                      max_iter=1000):
+
+        contact_ids = self.press_term.insole2smpl(frame_ids=frame_ids, insole_data=insole_data)
         optimizer = torch.optim.Adam([self.m_smpl.global_orient, self.m_smpl.transl,
                                             self.m_smpl.body_poseZ], lr=self.init_lr)
         pbar = trange(max_iter)
-        trimesh.Trimesh(vertices=depth_vmap,process=False).export(osp.join(self.results_dir,'frame%d_depth.obj'%frame_ids))
+        # trimesh.Trimesh(vertices=depth_vmap,process=False).export(osp.join(self.results_dir,'frame%d_depth.obj'%frame_ids))
         for iter in pbar:
             self.adjust_learning_rate(optimizer, iter)
             pbar.set_description("Frame[%03d]:" % frame_ids)
@@ -209,11 +218,24 @@ class SMPLSolver():
             joint_loss = self.color_term.calcColorLoss(keypoints=keypoints, points=joints,img=color_img)*self.w_joint2d
 
             loss_geo = depth_loss + joint_loss
-            # loss_geo = joint_loss
+
+            if contact_ids.shape[0]>0:
+                penetrate_loss = torch.mean(torch.abs(live_verts[0, contact_ids, 1])) * self.w_penetrate  # penetration
+                cont_loss = self.press_term.calcContLoss(live_verts=live_verts,
+                                                         contact_ids=contact_ids) * self.w_contact
+                loss_geo = loss_geo + penetrate_loss #+ cont_loss
+
+                if iter == 0:
+                    print(cont_loss,penetrate_loss,contact_ids.shape[0])
+
+            if iter==0:
+                print(depth_loss, joint_loss)
+
             optimizer.zero_grad()
             loss_geo.backward()
             optimizer.step()
 
+        self.press_term.setVertsPre(live_verts)
 
             # if iter % 100 == 0 and iter>0:
         _verts = live_verts.detach().cpu().numpy()[0]

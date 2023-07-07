@@ -4,7 +4,7 @@ import cv2
 import time
 import trimesh
 import numpy as np
-import pickle
+import copy
 from matplotlib import pyplot as plt
 from icecream import ic
 
@@ -44,7 +44,7 @@ class PressureTerm(nn.Module):
                 if self.masksmplR[i, j] > 0:
                     self.foot_ids[self.masksmplR[i, j]] += 1
         self.m_uv = UVGenerator()
-
+        self.verts_pre = None
 
     def show_insole_to_smpl(self):
         pklPath = "E:/dataset/PressureDataset/S12/insole_pkl/S12-跳绳-1.pkl"
@@ -165,5 +165,17 @@ class PressureTerm(nn.Module):
             im[:color_map.shape[0],:color_map.shape[1],:] = color_map
             cv2.imwrite('debug/insole2smpl/%03d.png'%frame_ids,im)
 
-        contact_label = (smpl_press>th).astype(np.int32)
-        return contact_label
+        # contact_label = (smpl_press>th).astype(np.int32)
+        contact_ids = (np.where(smpl_press>th)[0]).astype(np.int32)
+        return torch.tensor(contact_ids,device=self.device).long()
+
+    def setVertsPre(self,verts):
+        self.verts_pre = copy.deepcopy(verts.detach())
+
+    def calcContLoss(self,
+                     live_verts=None,
+                     contact_ids=None):
+        delta = live_verts[0,contact_ids,:] - self.verts_pre[0,contact_ids,:]
+        dist = torch.norm(delta, dim=-1)
+        cont_loss = torch.mean(dist,dim=0)
+        return cont_loss
