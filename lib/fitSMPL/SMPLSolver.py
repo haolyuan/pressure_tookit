@@ -68,6 +68,10 @@ class SMPLSolver():
                                     depth2floor=self.depth2floor,
                                     dtype=self.dtype,device=self.device)
 
+        footL_ids = np.loadtxt('essentials/footL_ids.txt').astype(np.int32)
+        footR_ids = np.loadtxt('essentials/footR_ids.txt').astype(np.int32)
+        self.foot_ids = torch.tensor(np.concatenate([footL_ids,footR_ids]),device=self.device).long()
+
         vertex_ids = VERTEX_IDS['smplh']
         self.vertex_joint_selector = VertexJointSelector(
             vertex_ids=vertex_ids).to(device)
@@ -138,8 +142,9 @@ class SMPLSolver():
             joint_loss = self.color_term.calcColorLoss(keypoints=keypoints, points=joints,img=color_img)*self.w_joint2d
 
             betas_reg_loss = torch.square(self.m_smpl.betas).mean() * self.w_betas
+            contact_loss = torch.mean(torch.abs(live_verts[0,self.foot_ids,1]))*10
 
-            loss_geo = depth_loss + betas_reg_loss + joint_loss
+            loss_geo = depth_loss + betas_reg_loss + joint_loss + contact_loss
             rough_optimizer.zero_grad()
             loss_geo.backward()
             rough_optimizer.step()

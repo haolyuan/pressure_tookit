@@ -2,6 +2,7 @@ import numpy as np
 import torch
 import trimesh
 import os
+import math
 import cv2,pickle
 from icecream import ic
 
@@ -9,7 +10,7 @@ from lib.fitSMPL.Camera import RGBDCamera
 from lib.fitSMPL.SMPLModel import SMPLModel
 from lib.fitSMPL.colorTerm import ColorTerm
 from lib.fitSMPL.pressureTerm import PressureTerm
-from lib.Utils.fileio import saveJointsAsOBJ,saveImgSeqAsvideo
+from lib.Utils.fileio import saveJointsAsOBJ,saveImgSeqAsvideo,saveNormalsAsOBJ
 
 
 def show_insole():
@@ -41,7 +42,25 @@ def show_insole():
     exit()
 
 if __name__ == '__main__':
-    saveImgSeqAsvideo('debug/insole2smpl')
+    template_model = trimesh.load('essentials/smpl_uv/smpl_template.obj')
+    verts = template_model.vertices
+    normals = template_model.vertex_normals
+    # saveNormalsAsOBJ('debug/smpl_normal.obj',verts,normals)
+    valid_ids = np.where((verts[:,1]<-1.097)&(verts[:,0]>0))[0]
+    verts_select = verts[valid_ids,:]
+    ic(verts_select.shape)
+    trimesh.Trimesh(vertices=verts_select,process=False).export('debug/footL.obj')
+    foot_list=[]
+    for i in valid_ids:
+        cosine = np.dot(normals[i,:], np.array([0, -1, 0]))
+        # ic(cosine)
+        if cosine > math.cos(20):
+            foot_list.append(i)
+    ic(len(foot_list))
+    trimesh.Trimesh(vertices=verts[foot_list,:], process=False).export('debug/footL_refine.obj')
+    np.savetxt('debug/footL_ids.txt',foot_list,fmt='%d')
+    exit()
+
     exit()
     m_pt = PressureTerm()
     m_pt.insole2smpl()

@@ -2,7 +2,7 @@
 dataset: 'PressureDataset'
 basdir: 'E:/dataset'
 sub_ids: 'S12'
-seq_name: 'MoCap_20230422_145422'
+seq_name: 'MoCap_20230422_145333'
 output_dir: 'output'
 color_size:
   - 1280

@@ -70,6 +70,7 @@ class DepthTerm(nn.Module):
 
         kdtree = scipy.spatial.cKDTree(depth_vmap)
         dists, indices = kdtree.query(verts_src, k=icp_near_size)
+
         tar_normals = depth_nmap[indices.reshape(-1)].reshape(-1, icp_near_size, 3)
 
         cosine = np.einsum('ijk,ik->ij', tar_normals, normal_src)

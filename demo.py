@@ -24,13 +24,13 @@ def main(**args):
         seq_name=args.get('seq_name'),
     )
 
-    from lib.fitSMPL.pressureTerm import PressureTerm
-    m_pt = PressureTerm()
-    frame_range = args.get('frame_range')
-    for ids in range(frame_range[0], frame_range[1] + 1):
-        frame_data = m_data.getFrameData(ids=ids)
-        m_pt.insole2smpl(ids,frame_data['insole'])
-    exit()
+    # from lib.fitSMPL.pressureTerm import PressureTerm
+    # m_pt = PressureTerm()
+    # frame_range = args.get('frame_range')
+    # for ids in range(frame_range[0], frame_range[1] + 1):
+    #     frame_data = m_data.getFrameData(ids=ids)
+    #     m_pt.insole2smpl(ids,frame_data['insole'])
+    # exit()
 
     m_cam = RGBDCamera(
         basdir=args.get('basdir'),
@@ -63,9 +63,8 @@ def main(**args):
                            keypoints=frame_data['kp'],
                            max_iter=args.get('maxiters'))
     else:
-
         params_path = osp.join(args.get('basdir'), args.get('dataset'), args.get('sub_ids'),
-                               'init_param100_wo_pressure.npy')
+                               'init_param100_w_pressure.npy')
         init_params = np.load(params_path,allow_pickle=True).item()
         frame_range = args.get('frame_range')
         for ids in range(frame_range[0],frame_range[1]+1):

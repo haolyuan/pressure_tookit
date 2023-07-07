@@ -33,15 +33,16 @@ class PressureDataset(Dataset):
         self.floor_normal = floor_info['normal']
         self.depth2floor = floor_info['depth2floor']
 
-        insole_name = insole_sync[self.sub_ids][seq_name]
-        insole_path = osp.join(self.basdir,self.dataset_name,self.sub_ids,'insole_pkl',insole_name+'.pkl')
-        with open(insole_path, "rb") as f:
-            insole_data = pickle.load(f)
-        # with open(insole_path.replace(".pkl", ".timestamps"), "rb") as f:
-        #     insole_timestamps = pickle.load(f)
-        indice_name = osp.join(self.basdir,self.dataset_name,self.sub_ids,'Synced_indice',insole_name+'*')
-        synced_indice = np.loadtxt(glob.glob(indice_name)[0]).astype(np.int32)
-        self.insole_data = insole_data[synced_indice]
+        self.insole_name = insole_sync[self.sub_ids][seq_name]
+        if self.insole_name is not None:
+            insole_path = osp.join(self.basdir,self.dataset_name,self.sub_ids,'insole_pkl',insole_name+'.pkl')
+            with open(insole_path, "rb") as f:
+                insole_data = pickle.load(f)
+            # with open(insole_path.replace(".pkl", ".timestamps"), "rb") as f:
+            #     insole_timestamps = pickle.load(f)
+            indice_name = osp.join(self.basdir,self.dataset_name,self.sub_ids,'Synced_indice',insole_name+'*')
+            synced_indice = np.loadtxt(glob.glob(indice_name)[0]).astype(np.int32)
+            self.insole_data = insole_data[synced_indice]
 
     def mapDepth2Floor(self,pointCloud,depth_normal):
         pointCloud = pointCloud.reshape([-1,3])
@@ -110,7 +111,10 @@ class PressureDataset(Dataset):
         body_kp = keypoints[0][:25,:]
 
         # read insole data
-        insole_data = self.insole_data[ids-1] #2,31,11
+        if self.insole_name is not None:
+            insole_data = self.insole_data[ids-1] #2,31,11
+        else:
+            insole_data = None
 
         output_dict = {'depth_map':depth_map,
                        'img': img,
