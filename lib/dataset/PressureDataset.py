@@ -44,6 +44,14 @@ class PressureDataset(Dataset):
             synced_indice = np.loadtxt(glob.glob(indice_name)[0]).astype(np.int32)
             self.insole_data = insole_data[synced_indice]
 
+            # mask_dir = osp.join(self.basdir,self.dataset_name,'insole_mask')
+            # insoleMaskL = np.loadtxt(osp.join(mask_dir,'insoleMaskL.txt')).astype(np.int32)
+            # insoleMaskR = np.loadtxt(osp.join(mask_dir,'insoleMaskR.txt')).astype(np.int32)
+            # self.insoleMask = np.stack([insoleMaskL,insoleMaskR])
+            # insoleImgMask = np.concatenate([insoleMaskL,insoleMaskR],axis=1)
+            # self.insoleImgMask = insoleImgMask<0.5
+
+
     def mapDepth2Floor(self,pointCloud,depth_normal):
         pointCloud = pointCloud.reshape([-1,3])
         depth_floor = (self.depth2floor[:3, :3] @ pointCloud.T + self.depth2floor[:3, 3].reshape([3, 1])).T
@@ -92,8 +100,9 @@ class PressureDataset(Dataset):
         img[:, img.shape[1] - imgR.shape[1]:] = imgR
         imgLarge = cv2.resize(img, (cols * 10 * 2, rows * 10))
         imgColor = cv2.applyColorMap(imgLarge, cv2.COLORMAP_HOT)
+        # imgColor = cv2.applyColorMap(imgLarge, cv2.COLORMAP_JET)
         cv2.imshow("img", imgColor)
-        cv2.waitKey(1)
+        cv2.waitKey(33)
 
     def getFrameData(self,ids):
         # read rgbd

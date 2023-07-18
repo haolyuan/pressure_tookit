@@ -2,6 +2,7 @@ import numpy as np
 import torch
 import trimesh
 import os
+import os.path as osp
 import math
 import cv2,pickle
 from icecream import ic
@@ -42,6 +43,24 @@ def show_insole():
     exit()
 
 if __name__ == '__main__':
+    fps = 10
+    img_width = 300
+    img_height = 400
+    size = (img_width*2, img_height)
+    basdir = 'debug/MoCap_20230422_145422'
+    video_path = osp.join(basdir, 'video.mp4')
+    videoWrite = cv2.VideoWriter(video_path, cv2.VideoWriter_fourcc('m', 'p', '4', 'v'), fps, size)
+
+    for ids in range(24,145):
+        img0 = cv2.imread(osp.join(basdir, 'MoCap_20230422_145422_wo_pressure/img/frame%04d_0300.png'%ids))
+        img0 = img0[258:(258+img_height),490:(490+img_width)]
+        img2 = cv2.imread(osp.join(basdir, 'MoCap_20230422_145422_w_pressure/frame%04d_0300.png'%ids))
+        img2 = img2[258:(258+img_height),490:(490+img_width)]
+        img = np.concatenate([img0,img2],axis=1)
+        videoWrite.write(img)
+    videoWrite.release()
+    ic('Free view video frame done!!')
+    exit()
     template_model = trimesh.load('essentials/smpl_uv/smpl_template.obj')
     verts = template_model.vertices
     normals = template_model.vertex_normals
