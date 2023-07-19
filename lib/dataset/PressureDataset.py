@@ -102,7 +102,8 @@ class PressureDataset(Dataset):
         imgColor = cv2.applyColorMap(imgLarge, cv2.COLORMAP_HOT)
         # imgColor = cv2.applyColorMap(imgLarge, cv2.COLORMAP_JET)
         cv2.imshow("img", imgColor)
-        cv2.waitKey(33)
+        cv2.waitKey(1)
+        return img
 
     def getFrameData(self,ids):
         # read rgbd

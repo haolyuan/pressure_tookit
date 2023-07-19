@@ -43,6 +43,7 @@ def show_insole():
     exit()
 
 if __name__ == '__main__':
+    exit()
     fps = 10
     img_width = 300
     img_height = 400
