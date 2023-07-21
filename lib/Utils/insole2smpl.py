@@ -1,7 +1,7 @@
 import sys
-import cv2
+import cv2,pickle
 import numpy as np
-import trimesh
+import trimesh,glob
 import os.path as osp
 from tqdm import tqdm,trange
 from icecream import ic
@@ -10,6 +10,7 @@ sys.path.append('E:/projects/pressure_toolkit')
 from lib.dataset.PressureDataset import PressureDataset
 from color_utils import rgb_code
 from lib.Utils.fileio import read_json,save_json,saveImgSeqAsvideo
+from lib.dataset.insole_sync import insole_sync
 
 def mapInsole2Smpl():
     footIdsL = np.loadtxt('essentials/footL_ids.txt').astype(np.int32)
@@ -29,10 +30,13 @@ def mapInsole2Smpl():
         tmp = np.stack(np.where(masksmplL == ids))
         lsL[str(ids)] = tmp
     np.save('essentials/pressure/insole2smplL.npy', lsL)
+    exit()
 
 
-def drawSMPLFoot(v_foot,footIds,faces,img_H=3300,img_W=1100,vert_color=None,save_name=None):
-    tex_color = rgb_code['Purple']
+def drawSMPLFoot(v_foot,footIds,faces,img_H=3300,img_W=1100,
+                 vert_color=None,save_name=None,
+                 point_size=40):
+    tex_color = rgb_code['DarkCyan']
     line_color = rgb_code['Green']
     x_col = img_W-(v_foot[:,0]-np.min(v_foot[:,0]))/(np.max(v_foot[:,0])-np.min(v_foot[:,0]))*(img_W-1)-1
     x_row = img_H-(v_foot[:,2]-np.min(v_foot[:,2]))/(np.max(v_foot[:,2])-np.min(v_foot[:,2]))*(img_H-1)-1
@@ -67,7 +71,7 @@ def drawSMPLFoot(v_foot,footIds,faces,img_H=3300,img_W=1100,vert_color=None,save
             v_color = rgb_code['Black']
         else:
             v_color = vert_color[i,::-1]
-        img = cv2.circle(img, (int(y), int(x)), 40, (int(v_color[2]), int(v_color[1]), int(v_color[0])), -1)
+        img = cv2.circle(img, (int(y), int(x)), point_size, (int(v_color[2]), int(v_color[1]), int(v_color[0])), -1)
         img = cv2.putText(img, f"{footIds[i]}", (int(y), int(x)+25),
                             cv2.FONT_HERSHEY_SIMPLEX, 1.0, (tex_color[2],tex_color[1],tex_color[0]))
 
@@ -87,6 +91,32 @@ def getVertsColor(pressure_img,footIds,insole2smpl):
                 verts_color[i] = np.sum(_color,axis=0)
     return verts_color.astype(np.int32)
 
+def loadInsoleData(basdir='E:/dataset/PressureDataset/20230422',
+        sub_ids='S10',seq_name='MoCap_20230422_171535'):
+    insole_name = insole_sync[sub_ids][seq_name]
+
+    insole_path = osp.join(basdir, 'insole_pkl', insole_name + '.pkl')
+    with open(insole_path, "rb") as f:
+        insole_data = pickle.load(f)
+    indice_name = osp.join(basdir, 'Synced_indice', insole_name + '*')
+    synced_indice = np.loadtxt(glob.glob(indice_name)[0]).astype(np.int32)
+    insole_data = insole_data[synced_indice]
+    return insole_data
+
+def show_insole(idx,insole_data):
+    data = insole_data[idx]
+    press_dim,rows,cols = data.shape
+    img = np.ones((rows, cols * 2), dtype=np.uint8)
+    imgL = np.uint8(data[0] * 5)
+    imgR = np.uint8(data[1] * 5)
+    img[:, :imgL.shape[1]] = imgL
+    img[:, img.shape[1] - imgR.shape[1]:] = imgR
+    imgLarge = cv2.resize(img, (cols * 10 * 2, rows * 10))
+    imgColor = cv2.applyColorMap(imgLarge, cv2.COLORMAP_HOT)
+    # imgColor = cv2.applyColorMap(imgLarge, cv2.COLORMAP_JET)
+    cv2.imshow("img", imgColor)
+    cv2.waitKey(1)
+    return img
 
 if __name__ == '__main__':
     # mapInsole2Smpl()
@@ -96,40 +126,35 @@ if __name__ == '__main__':
     footIdsR = np.loadtxt('essentials/footR_ids.txt').astype(np.int32)
     model_temp = trimesh.load(osp.join(save_dir, 'v_template.obj'))
     v_template = np.array(model_temp.vertices)
-    ic(footIdsR.shape, footIdsL.shape)
-    v_footL = v_template[footIdsL, :]
-    v_footR = v_template[footIdsR, :]
+    v_footL,v_footR = v_template[footIdsL, :],v_template[footIdsR, :]
     # trimesh.Trimesh(vertices=v_template[footIdsR,:],process=False).export('debug/footR.obj')
     # trimesh.Trimesh(vertices=v_template[footIdsL,:],process=False).export('debug/footL.obj')
     foot_verts = np.concatenate([v_footL, v_footR], axis=0)
     verts_xz = foot_verts[:, [0, 2]]
 
-    insole2smplR = np.load('essentials/pressure/insole2smplR.npy', allow_pickle=True).item()
-    insole2smplL = np.load('essentials/pressure/insole2smplL.npy', allow_pickle=True).item()
+    insole2smplR = np.load('essentials/pressure/insole2smplR_.npy', allow_pickle=True).item()
+    insole2smplL = np.load('essentials/pressure/insole2smplL_.npy', allow_pickle=True).item()
 
-    m_data = PressureDataset(
-        basdir='E:/dataset',
-        dataset_name='PressureDataset',
-        sub_ids='S12',
-        seq_name='MoCap_20230422_145422',
-    )
-    for insole_ids in trange(1,145):
+    insole_data = loadInsoleData(sub_ids='S10',seq_name='MoCap_20230422_171535')
+    for insole_ids in trange(insole_data.shape[0]):
         # insole_ids = 24
-        pressure_img = m_data.show_insole(insole_ids)
+        pressure_img = show_insole(insole_ids,insole_data)
         pressure_img = cv2.applyColorMap(pressure_img, cv2.COLORMAP_HOT)
         # cv2.imwrite(osp.join(save_dir,'pressure%d.png'%insole_ids),pressure_img)
 
         vert_colorR = getVertsColor(pressure_img[:,], footIdsR, insole2smplR)
         imgR = drawSMPLFoot(v_footR,footIdsR,np.array(model_temp.faces),
-                            vert_color=vert_colorR,save_name=None)
+                            vert_color=vert_colorR,save_name=None,
+                            point_size=40)
 
         vert_colorL = getVertsColor(pressure_img[:,], footIdsL, insole2smplL)
         imgL = drawSMPLFoot(v_footL,footIdsL,np.array(model_temp.faces),
-                            vert_color=vert_colorL,save_name=None)
+                            vert_color=vert_colorL,save_name=None,
+                            point_size=40)
         img = np.concatenate([cv2.resize(pressure_img, (2200, 3350)),imgL,imgR],axis=1)
         cv2.imwrite('debug/insole2smpl/results/%03d.png'%insole_ids,img)
 
-    saveImgSeqAsvideo('debug/insole2smpl/results', fps=10,ratio=10)
+    # saveImgSeqAsvideo('debug/insole2smpl/results', fps=10,ratio=10)
 
 
 

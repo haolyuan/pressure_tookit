@@ -43,6 +43,17 @@ def show_insole():
     exit()
 
 if __name__ == '__main__':
+    insole2smplL = np.load('essentials/pressure/insole2smplL.npy', allow_pickle=True).item()
+    footLR_ids = np.loadtxt('essentials/footLR_ids.txt').astype(np.int32)
+    ic(footLR_ids.shape)
+    insole2smplR={}
+    for i in range(footLR_ids.shape[0]):
+        Li = footLR_ids[i,0]
+        Ri = footLR_ids[i,1]
+        _l = insole2smplL[str(Li)]
+        _l[0,:] = 11-_l[0,:]
+        insole2smplR[str(Ri)] = _l
+    np.save('essentials/pressure/insole2smplR.npy', insole2smplR)
     exit()
     fps = 10
     img_width = 300
