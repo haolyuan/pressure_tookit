@@ -118,7 +118,67 @@ def show_insole(idx,insole_data):
     cv2.waitKey(1)
     return img
 
+def footRegion():
+    '''
+    :return: (row_num,col_num)
+    '''
+    insoleRegion={}
+    insoleMaskR = np.loadtxt('E:\dataset\PressureDataset\insole_mask/insoleMaskR.txt').astype(np.int32)
+    ic(insoleMaskR.shape)
+
+    BigToe = np.array(np.where((insoleMaskR[:6,:5]>0.5)))
+    insoleRegion['BigToe'] = BigToe
+
+    MidToe = np.array(np.where((insoleMaskR[:6, 5:8] > 0.5)))
+    MidToe[1,:] = MidToe[1,:]+5
+    insoleRegion['MidToe'] = MidToe
+
+    SmallToe = np.array(np.where((insoleMaskR[:6, 8:] > 0.5)))
+    SmallToe[1,:] = SmallToe[1,:]+8
+    insoleRegion['SmallToe'] = SmallToe
+
+    SmallToe = np.array(np.where((insoleMaskR[:6, 8:] > 0.5)))
+    SmallToe[1,:] = SmallToe[1,:]+8
+    insoleRegion['SmallToe'] = SmallToe
+
+    Metatarsus0 = np.array(np.where((insoleMaskR[6:15, :4] > 0.5)))
+    Metatarsus0[0,:] = Metatarsus0[0,:] + 6
+    insoleRegion['Metatarsus0'] = Metatarsus0
+
+    Metatarsus1 = np.array(np.where((insoleMaskR[6:15, 4:8] > 0.5)))
+    Metatarsus1[0,:] = Metatarsus1[0,:] + 6
+    Metatarsus1[1,:] = Metatarsus1[1,:] + 4
+    insoleRegion['Metatarsus1'] = Metatarsus1
+
+    Metatarsus2 = np.array(np.where((insoleMaskR[6:15, 8:] > 0.5)))
+    Metatarsus2[0,:] = Metatarsus2[0,:] + 6
+    Metatarsus2[1,:] = Metatarsus2[1,:] + 8
+    insoleRegion['Metatarsus2'] = Metatarsus2
+
+    Cuboid0 = np.array(np.where((insoleMaskR[15:25, :8] > 0.5)))
+    Cuboid0[0,:] = Cuboid0[0,:] + 15
+    insoleRegion['Cuboid0'] = Cuboid0
+
+    Cuboid1 = np.array(np.where((insoleMaskR[15:25, 8:] > 0.5)))
+    Cuboid1[0,:] = Cuboid1[0,:] + 15
+    Cuboid1[1,:] = Cuboid1[1,:] + 8
+    insoleRegion['Cuboid1'] = Cuboid0
+
+    Calcaneus0 = np.array(np.where((insoleMaskR[25:, :8] > 0.5)))
+    Calcaneus0[0,:] = Calcaneus0[0,:] + 25
+    insoleRegion['Calcaneus0'] = Calcaneus0
+
+    Calcaneus1 = np.array(np.where((insoleMaskR[25:, 8:] > 0.5)))
+    Calcaneus1[0, :] = Calcaneus1[0, :] + 25
+    Calcaneus1[1, :] = Calcaneus1[1, :] + 8
+    insoleRegion['Calcaneus1'] = Calcaneus1
+    exit()
+
+    np.save('debug/insole2smpl/insoleRegion.npy',insoleRegion)
+    exit()
+
 if __name__ == '__main__':
+    footRegion()
     # mapInsole2Smpl()
     save_dir = 'debug/insole2smpl'
     insoleMaskR = np.loadtxt('E:/dataset/PressureDataset/insole_mask/insoleMaskR.txt').astype(np.int32)
@@ -135,26 +195,25 @@ if __name__ == '__main__':
     insole2smplR = np.load('essentials/pressure/insole2smplR_.npy', allow_pickle=True).item()
     insole2smplL = np.load('essentials/pressure/insole2smplL_.npy', allow_pickle=True).item()
 
-    insole_data = loadInsoleData(sub_ids='S10',seq_name='MoCap_20230422_171535')
+    insole_data = loadInsoleData(sub_ids='S12',seq_name='MoCap_20230422_145422')
     for insole_ids in trange(insole_data.shape[0]):
         # insole_ids = 24
         pressure_img = show_insole(insole_ids,insole_data)
         pressure_img = cv2.applyColorMap(pressure_img, cv2.COLORMAP_HOT)
         # cv2.imwrite(osp.join(save_dir,'pressure%d.png'%insole_ids),pressure_img)
-
-        vert_colorR = getVertsColor(pressure_img[:,], footIdsR, insole2smplR)
+        vert_colorR = getVertsColor(pressure_img[:,11:,:], footIdsR, insole2smplR)
         imgR = drawSMPLFoot(v_footR,footIdsR,np.array(model_temp.faces),
                             vert_color=vert_colorR,save_name=None,
                             point_size=40)
 
-        vert_colorL = getVertsColor(pressure_img[:,], footIdsL, insole2smplL)
+        vert_colorL = getVertsColor(pressure_img[:,:11,:], footIdsL, insole2smplL)
         imgL = drawSMPLFoot(v_footL,footIdsL,np.array(model_temp.faces),
                             vert_color=vert_colorL,save_name=None,
                             point_size=40)
         img = np.concatenate([cv2.resize(pressure_img, (2200, 3350)),imgL,imgR],axis=1)
         cv2.imwrite('debug/insole2smpl/results/%03d.png'%insole_ids,img)
 
-    # saveImgSeqAsvideo('debug/insole2smpl/results', fps=10,ratio=10)
+    saveImgSeqAsvideo('debug/insole2smpl/results', fps=10,ratio=10)
 
 
 

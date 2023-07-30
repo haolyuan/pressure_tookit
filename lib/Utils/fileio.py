@@ -72,7 +72,7 @@ def saveProjectedJoints(filename=None,img=None,joint_projected=None):
     cv2.imwrite(filename,img)
 
 #==============================Video Saver==============================
-def saveImgSeqAsvideo(basdir,fps=30,ratio=1.0):
+def saveImgSeqAsvideo(basdir,fps=30,ratio=1.0,color=[0,0,255]):
     img_ls = sorted([x for x in os.listdir(basdir)
                      if x.endswith('.png') or x.endswith('.jpg')])
 
@@ -81,11 +81,14 @@ def saveImgSeqAsvideo(basdir,fps=30,ratio=1.0):
     # fourcc = cv2.VideoWriter_fourcc(*"XVID")
     # videoWrite = cv2.VideoWriter(video_path, fourcc, fps, size)
     video_path = osp.join(basdir,'video.mp4')
-    videoWrite = cv2.VideoWriter(video_path,cv2.VideoWriter_fourcc('m', 'p', '4', 'v'), fps, size)
+    videoWrite = cv2.VideoWriter(video_path,cv2.VideoWriter_fourcc('m', 'p', '4',  'v'), fps, size)
 
-    for img_fn in img_ls:
+    for ii in range(len(img_ls)):
+        img_fn = img_ls[ii]
         img = cv2.imread(osp.join(basdir,img_fn))
         img = cv2.resize(img, (int(img_height/ratio),int(img_width/ratio)))
+        img = cv2.putText(img, f"{ii}", (20, 60), cv2.FONT_HERSHEY_SIMPLEX,
+                          2, (color[0], color[1], color[2]), 2)
         videoWrite.write(img)
     videoWrite.release()
     ic('Free view video frame done!!')

@@ -1,3 +1,5 @@
+import copy
+
 import numpy as np
 import torch
 import trimesh
@@ -5,6 +7,7 @@ import os
 import os.path as osp
 import math
 import cv2,pickle
+from tqdm import tqdm,trange
 from icecream import ic
 
 from lib.fitSMPL.Camera import RGBDCamera
@@ -42,7 +45,7 @@ def show_insole():
     cv2.destroyAllWindows()
     exit()
 
-if __name__ == '__main__':
+def minorReviseInsole2Smpl():
     insole2smplL = np.load('essentials/pressure/insole2smplL.npy', allow_pickle=True).item()
     footLR_ids = np.loadtxt('essentials/footLR_ids.txt').astype(np.int32)
     ic(footLR_ids.shape)
@@ -51,69 +54,18 @@ if __name__ == '__main__':
         Li = footLR_ids[i,0]
         Ri = footLR_ids[i,1]
         _l = insole2smplL[str(Li)]
-        _l[0,:] = 11-_l[0,:]
-        insole2smplR[str(Ri)] = _l
-    np.save('essentials/pressure/insole2smplR.npy', insole2smplR)
-    exit()
-    fps = 10
-    img_width = 300
-    img_height = 400
-    size = (img_width*2, img_height)
-    basdir = 'debug/MoCap_20230422_145422'
-    video_path = osp.join(basdir, 'video.mp4')
-    videoWrite = cv2.VideoWriter(video_path, cv2.VideoWriter_fourcc('m', 'p', '4', 'v'), fps, size)
-
-    for ids in range(24,145):
-        img0 = cv2.imread(osp.join(basdir, 'MoCap_20230422_145422_wo_pressure/img/frame%04d_0300.png'%ids))
-        img0 = img0[258:(258+img_height),490:(490+img_width)]
-        img2 = cv2.imread(osp.join(basdir, 'MoCap_20230422_145422_w_pressure/frame%04d_0300.png'%ids))
-        img2 = img2[258:(258+img_height),490:(490+img_width)]
-        img = np.concatenate([img0,img2],axis=1)
-        videoWrite.write(img)
-    videoWrite.release()
-    ic('Free view video frame done!!')
-    exit()
-    template_model = trimesh.load('essentials/smpl_uv/smpl_template.obj')
-    verts = template_model.vertices
-    normals = template_model.vertex_normals
-    # saveNormalsAsOBJ('debug/smpl_normal.obj',verts,normals)
-    valid_ids = np.where((verts[:,1]<-1.097)&(verts[:,0]>0))[0]
-    verts_select = verts[valid_ids,:]
-    ic(verts_select.shape)
-    trimesh.Trimesh(vertices=verts_select,process=False).export('debug/footL.obj')
-    foot_list=[]
-    for i in valid_ids:
-        cosine = np.dot(normals[i,:], np.array([0, -1, 0]))
-        # ic(cosine)
-        if cosine > math.cos(20):
-            foot_list.append(i)
-    ic(len(foot_list))
-    trimesh.Trimesh(vertices=verts[foot_list,:], process=False).export('debug/footL_refine.obj')
-    np.savetxt('debug/footL_ids.txt',foot_list,fmt='%d')
+        _r = copy.deepcopy(_l)
+        _r[1,:] = 10-_l[1,:]
+        insole2smplR[str(Ri)] = _r
+    np.save('debug/insole2smplR.npy', insole2smplR)
     exit()
 
-    exit()
-    m_pt = PressureTerm()
-    m_pt.insole2smpl()
-    exit()
-    params = np.load('debug/init_param100.npy',allow_pickle=True).item()
-    ic(params)
-
-    m_smpl = SMPLModel(model_path='E:/bodyModels/smpl',
-        num_betas=10, gender='male')
-
-    params_dict = {
-        'betas': torch.tensor(params['betas']),
-        'global_orient':torch.tensor(params['global_orient']),
-        'transl': torch.tensor(params['transl']),
-        'body_pose': torch.tensor(params['body_pose']),
-        'body_poseZ': torch.tensor(params['body_poseZ']),
-    }
-    m_smpl.setPose(**params_dict)
-    m_smpl.updateShape()
-    live_verts, J_transformed = m_smpl.updatePose()
-    j_posed = m_smpl.vertices2joints(m_smpl.J_regressor, live_verts)
-    saveJointsAsOBJ('debug/init_joints.obj', j_posed.detach().cpu().numpy()[0], m_smpl.parents)
-    np.save('debug/init_joints.npy',j_posed.detach().cpu().numpy()[0])
-    verts = live_verts.detach().cpu().numpy()[0]
-    init_model = trimesh.Trimesh(vertices=verts,faces=m_smpl.faces,process=False)#.export('debug/init_model.obj')
+if __name__ == '__main__':
+    # minorReviseInsole2Smpl()
+    footL_ids = np.loadtxt('essentials/footL_ids.txt').astype(np.int32)
+    footR_ids = np.loadtxt('essentials/footR_ids.txt').astype(np.int32)
+    footL2R= np.loadtxt('essentials/footLR_ids.txt').astype(np.int32)
+    insole2smplR = np.load('debug/insole2smplR.npy', allow_pickle=True).item()
+    insole2smplL = np.load('essentials/pressure/insole2smplL.npy', allow_pickle=True).item()
+    ic(insole2smplR['6630'])
+    ic(insole2smplL['3228'])
