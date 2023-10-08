@@ -107,11 +107,11 @@ class PressureDataset(Dataset):
 
     def getFrameData(self,ids):
         # read rgbd
-        depth_path = osp.join(self.rgbddir,'depth/frame_%d.png'%ids)
+        depth_path = osp.join(self.rgbddir,'depth/%03d.png'%ids)
         depth_map = imageio.imread(depth_path).astype(np.float32) / 1000.
-        img_path = osp.join(self.rgbddir,'color/frame_%d.png'%ids)
+        img_path = osp.join(self.rgbddir,'color/%03d.png'%ids)
         img = cv2.imread(img_path)
-        mask_path = osp.join(self.rgbddir,'mask/frame_%d.png'%ids)
+        mask_path = osp.join(self.rgbddir,'mask/%03d.png'%ids)
         mask = cv2.imread(mask_path)
         mask = np.mean(mask,axis=-1)
 

@@ -7,6 +7,9 @@ import trimesh
 import cv2
 from icecream import ic
 
+import sys
+sys.path.append('D:/utils/pressure_toolkit')
+
 from lib.config.config import parse_config
 from lib.dataset.PressureDataset import PressureDataset
 from lib.fitSMPL.Camera import RGBDCamera
@@ -57,7 +60,7 @@ def main(**args):
     )
 
     if args.get('init_model'):
-        frame_data = m_data.getFrameData(ids=13)
+        frame_data = m_data.getFrameData(ids=23)
         dv_valid,dn_valid = m_cam.preprocessDepth(frame_data['depth_map'],frame_data['mask'])
         dv_floor,dn_normal = m_data.mapDepth2Floor(dv_valid,dn_valid)
         m_solver.initShape(depth_vmap=dv_floor,depth_nmap=dn_normal,

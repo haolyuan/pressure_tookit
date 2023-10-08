@@ -40,7 +40,7 @@ class SMPLSolver():
         self.floor2depth = np.linalg.inv(depth2floor)
         self.depth2color = depth2color
 
-        vp, ps = load_model(expr_dir='E:/bodyModels/V02_05', model_code=VPoser,
+        vp, ps = load_model(expr_dir='D:/utils/Vposer_models/V02_05', model_code=VPoser,
                             remove_words_in_model_weights='vp_model.',
                             disable_grad=True)
         self.vp = vp.to(self.device)

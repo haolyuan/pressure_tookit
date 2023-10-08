@@ -1,8 +1,8 @@
 # Flags for data set and data dirs
 dataset: 'PressureDataset'
-basdir: 'E:/dataset'
+basdir: 'D:/dataset'
 sub_ids: 'S12'
-seq_name: 'MoCap_20230422_145333'
+seq_name: 'MoCap_20230422_145422'
 output_dir: 'output'
 color_size:
   - 1280
@@ -18,7 +18,7 @@ frame_range:
 num_shape_comps: 10
 model_gender: 'male'
 
-init_model: True
+init_model: False
 shape_weights: 0.01
 depth_weights: 10.0
 keypoint_weights: 0.0001
