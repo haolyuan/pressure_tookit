@@ -148,3 +148,7 @@ cython_debug/
 # initial files
 human_body_prior
 essentials
+
+# output
+output
+outputs
