@@ -13,7 +13,7 @@ depth_size:
 
 frame_range:
   - 24
-  - 145
+  - 144
 
 num_shape_comps: 10
 model_gender: 'male'

@@ -11,6 +11,7 @@ from human_body_prior.models.vposer_model import VPoser
 from smplx.vertex_joint_selector import VertexJointSelector
 from smplx.vertex_ids import vertex_ids as VERTEX_IDS
 from icecream import ic
+from scipy.spatial.transform import Rotation as R
 
 from lib.fitSMPL.SMPLModel import SMPLModel
 from lib.fitSMPL.depthTerm import DepthTerm
@@ -249,12 +250,24 @@ class SMPLSolver():
                             joint_projected=keypoints[:,:2])
 
 
-        annot = {}
-        annot['global_orient'] = self.m_smpl.global_orient.detach().cpu().numpy()
-        annot['transl'] = self.m_smpl.transl.detach().cpu().numpy()
-        annot['betas'] = self.m_smpl.betas.detach().cpu().numpy()
         amass_body_pose_rec0 = self.vp.decode(self.m_smpl.body_poseZ)['pose_body'].contiguous().view(-1, 63)
         body_pose_rec0 = torch.cat([amass_body_pose_rec0, torch.zeros([1, 6], device=self.device)], dim=1)
-        annot['body_pose'] = body_pose_rec0.detach().cpu().numpy()
-        annot['body_poseZ'] = self.m_smpl.body_poseZ.detach().cpu().numpy()
-        np.save(osp.join(self.results_dir,'frame%04d_%04d.png'%(frame_ids,iter)),annot)
+        body_pose = body_pose_rec0.detach().cpu()
+        
+        global_orient = self.m_smpl.global_orient.detach().cpu()
+        
+        pose = torch.concat([global_orient, body_pose], dim=1)
+        
+        output_pose = torch.zeros((pose.shape[0], 24, 3, 3), device=pose.device)
+        for i in range(output_pose.shape[1]):
+            output_pose[:, i] = torch.tensor(R.from_rotvec(pose.numpy()[:, i* 3: i* 3+ 3]).as_matrix(),
+                                             device=pose.device)
+
+        annot = {}
+        # annot['body_poseZ'] = self.m_smpl.body_poseZ.detach().cpu().numpy()
+        annot['transl'] = self.m_smpl.transl.detach().cpu()
+        annot['betas'] = self.m_smpl.betas.detach().cpu()        
+        annot['pose'] = output_pose
+
+        return self.m_smpl.transl.detach().cpu(), output_pose,\
+            self.m_smpl.betas.detach().cpu() 

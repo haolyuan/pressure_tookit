@@ -1,0 +1,7 @@
+gpu: 0
+seed: null
+task:
+  motion_type: tiaosheng
+  seq_name: MoCap_20230422_145422
+  output_path_debug: results/debug/tiaosheng
+  scale: 0.5

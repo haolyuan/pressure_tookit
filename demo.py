@@ -68,22 +68,45 @@ def main(**args):
                            keypoints=frame_data['kp'],
                            max_iter=args.get('maxiters'))
     else:
-        params_path = osp.join(args.get('basdir'), args.get('dataset'), args.get('sub_ids'),
-                               'init_param100_w_pressure.npy')
+        # params_path = osp.join(args.get('basdir'), args.get('dataset'), args.get('sub_ids'),
+        #                        'init_param100_w_pressure.npy')
+        params_path = 'debug/init_param100.npy'
         init_params = np.load(params_path,allow_pickle=True).item()
         m_solver.setInitPose(init_params=init_params)
         frame_range = args.get('frame_range')
-        for ids in range(frame_range[0],frame_range[1]+1):
+        
+        trans_list, pose_list, betas_list = [], [], []
+        seq_name=args.get('seq_name')
+        
+        for ids in range(frame_range[0],frame_range[1]+1):# frame_range[0] + 10
             frame_data = m_data.getFrameData(ids=ids)
             dv_valid, dn_valid = m_cam.preprocessDepth(frame_data['depth_map'], frame_data['mask'])
             dv_floor, dn_normal = m_data.mapDepth2Floor(dv_valid, dn_valid)
-            m_solver.modelTracking(
+            frame_trans, frame_pose, frame_betas =\
+                m_solver.modelTracking(
                 frame_ids=ids,
                 depth_vmap=dv_floor, depth_nmap=dn_normal,
                 color_img=frame_data['img'],keypoints=frame_data['kp'],
                 insole_data=frame_data['insole'],
                 max_iter=args.get('maxiters'))
-
+            # import pdb;pdb.set_trace()
+            annot = {'transl': frame_trans.numpy(),
+                    'pose': frame_pose.numpy(),    
+                    'betas': frame_betas.numpy()}
+            np.save(osp.join(f'debug/{seq_name}/frame{ids:04d}_{ids:04d}'), annot)
+            trans_list.append(frame_trans)
+            pose_list.append(frame_pose)
+            betas_list.append(frame_betas)
+        trans_seq =  torch.stack(trans_list)
+        pose_seq = torch.stack(pose_list)
+        betas_seq = torch.stack(betas_list)
+        result_seq = {
+            'pose' : pose_seq,
+            'trans' : trans_seq,
+            'beta' : betas_seq
+        }
+        
+        torch.save(result_seq, f'debug/{seq_name}/tracking_result_{seq_name}.pth')
 
 if __name__ == "__main__":
     args = parse_config()

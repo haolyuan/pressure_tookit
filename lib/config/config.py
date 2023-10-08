@@ -75,7 +75,7 @@ def parse_config(argv=None):
     # fitting / losses   init_model
     parser.add_argument('--init_model',
                         default=False,
-                        type=lambda x: x.lower() in ['true', '1'],
+                        action='store_true',
                         help='init or tracking')
     parser.add_argument('--shape_weights', default=0.01,
                         type=float, help='The weights of the Shape regularizer')

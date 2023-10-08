@@ -1,0 +1,8 @@
+motion_type: 'tiaosheng'
+seq_name: 'MoCap_20230422_145422'
+
+
+output_path_debug: 'results/debug/tiaosheng'
+# scale: 0.9276778
+scale: 0.5
+# scale: 1
