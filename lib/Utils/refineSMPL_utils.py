@@ -7,20 +7,16 @@ import cv2
 from scipy.spatial.transform import Rotation as R
 
 import sys
-sys.path.append('D:/utils/BetterFootContact_new') 
+sys.path.append('D:/utils/pressure_toolkit') 
 
-def smpl_forward_official(device, 
-                          dtype,
+def smpl_forward_official(device=torch.device('cuda'), 
+                          dtype=torch.float32,
                           body_pose = np.zeros([1, 69]),
                           betas = np.zeros([1, 10]),
                           transl = np.zeros([1, 3]),
                           global_rot = np.zeros([1, 3]),
-                          result_dir=None,
-                          result_name=None,
-                          save_data=True):
-    smpl_model = SMPL('bodymodels/smpl/SMPL_NEUTRAL.pkl').to(device)
-
-    transl[:, 1] = np.array([0.9144] * 1)
+                          gender='NEUTRAL'):
+    smpl_model = SMPL(f'../../bodyModels/smpl/SMPL_{gender}.pkl').to(device)
     
     # rest pose
     betas = torch.tensor(betas,dtype=dtype,device=device)        

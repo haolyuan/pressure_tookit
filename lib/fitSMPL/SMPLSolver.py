@@ -171,7 +171,7 @@ class SMPLSolver():
         body_pose_rec0 = torch.cat([amass_body_pose_rec0, torch.zeros([1, 6], device=self.device)], dim=1)
         annot['body_pose'] = body_pose_rec0.detach().cpu().numpy()
         annot['body_poseZ'] = self.m_smpl.body_poseZ.detach().cpu().numpy()
-        np.save('debug/init_param%d.npy'%iter,annot)
+        return annot
 
     def setInitPose(self,init_params=None):
         betas = torch.tensor(init_params['betas'],dtype=self.dtype,device=self.device)

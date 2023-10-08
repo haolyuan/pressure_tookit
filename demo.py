@@ -58,15 +58,19 @@ def main(**args):
         seq_name=args.get('seq_name'),
         device=device
     )
-
+    
+    seq_name=args.get('seq_name')
+    
     if args.get('init_model'):
         frame_data = m_data.getFrameData(ids=23)
         dv_valid,dn_valid = m_cam.preprocessDepth(frame_data['depth_map'],frame_data['mask'])
         dv_floor,dn_normal = m_data.mapDepth2Floor(dv_valid,dn_valid)
-        m_solver.initShape(depth_vmap=dv_floor,depth_nmap=dn_normal,
+        annot = m_solver.initShape(depth_vmap=dv_floor,depth_nmap=dn_normal,
                            color_img=frame_data['img'],
                            keypoints=frame_data['kp'],
                            max_iter=args.get('maxiters'))
+        np.save(f'debug/init_param_.npy{seq_name}',annot)
+        
     else:
         # params_path = osp.join(args.get('basdir'), args.get('dataset'), args.get('sub_ids'),
         #                        'init_param100_w_pressure.npy')
@@ -76,7 +80,6 @@ def main(**args):
         frame_range = args.get('frame_range')
         
         trans_list, pose_list, betas_list = [], [], []
-        seq_name=args.get('seq_name')
         
         for ids in range(frame_range[0],frame_range[1]+1):# frame_range[0] + 10
             frame_data = m_data.getFrameData(ids=ids)

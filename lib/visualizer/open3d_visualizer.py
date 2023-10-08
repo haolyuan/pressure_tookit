@@ -87,12 +87,17 @@ class Visualizer(Camera):
         axis = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.5, origin=[0, 0, 0])
         ground_plane = o3d.geometry.TriangleMesh.create_box(
             width=4.0, height=4.0, depth=0.001)
+        ground_plane.translate([-2, -2, 0])
+        
+        # 沿mesh中线旋转，不是绕轴旋转
         ground_plane.rotate(
             o3d.geometry.get_rotation_matrix_from_axis_angle([np.pi/2, 0, 0]))
-        ground_plane.translate([-2, -2, 0])
+        # import pdb;pdb.set_trace()
+
+        # [ 0.1824,  1.0754, -1.0243]
 
         # translate y to move the plane belove the foot
-        ground_plane.translate([0, 0, 3])
+        # ground_plane.translate([0, -1, 0])
 
         pcd_all = o3d.geometry.PointCloud()
 
@@ -108,23 +113,27 @@ class Visualizer(Camera):
         view_control = vis.get_view_control()
         cam_params = view_control.convert_to_pinhole_camera_parameters()
         if view == 'front':
-            cam_offset = 2
+            cam_offset_x = -0.5
+            cam_offset_y = 1
+            cam_offset_z = 1
             cam_params.extrinsic = np.array([
-                [-1, 0, 0, 0],
-                [0, -1, 0, 1.5],
-                [0, 0, 1, cam_offset],
+                [1, 0, 0, cam_offset_x],
+                [0, -1, 0, cam_offset_y],
+                [0, 0, -1, cam_offset_z],
                 [0, 0, 0, 1],
             ])
             view_control.set_zoom(1)
         elif view == 'side':
-            cam_offset = 3
+            cam_offset_x = -1
+            cam_offset_y = 0.5
+            cam_offset_z = 1.8
             cam_params.extrinsic = np.array([
-                [0, 0, 1, -3],
-                [0, -1, 0, -1],
-                [-1, 0, 0, cam_offset],
+                [0, 0, -1, cam_offset_x],
+                [0, -1, 0, cam_offset_y],
+                [-1, 0, 0, cam_offset_z],
                 [0, 0, 0, 1],
             ])
-            view_control.set_zoom(0.4)
+            view_control.set_zoom(1)
         elif view == 'camera':
             cam_params.extrinsic = np.array([
                 [-1, 0, 0, 0],

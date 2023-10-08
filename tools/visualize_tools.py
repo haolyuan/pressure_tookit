@@ -103,7 +103,7 @@ def main(cfg):
     transl_init = init_smpl_data['trans'] # [seq_len, bs, 3]
     pose_init = init_smpl_data['pose'] # [seq_len, bs, 24, 3, 3]
     beta_init = init_smpl_data['beta'] # [seq_len, bs, 10]
-    
+    # import pdb;pdb.set_trace()
     # import pdb; pdb.set_trace()
     
     # init smpl model
@@ -111,7 +111,7 @@ def main(cfg):
             model_root='../../bodyModels/smpl',
             num_betas=10,
             bs=1,
-            gender='neutral')
+            gender='male')
     m_smpl.to(device)
     
     # not use default betas, but betas optimized
@@ -135,7 +135,7 @@ def main(cfg):
         
         live_verts, _, _ = m_smpl.update_pose()
         source_verts = live_verts
-        source_verts[:, :, 1] += 1.5
+
         source_verts_list.append(source_verts)   
 
     source_verts4view = torch.concat(source_verts_list, dim= 0)
@@ -145,7 +145,7 @@ def main(cfg):
                                   save_video=True,
                                   visible=True,
                                   need_norm=False, 
-                                  view='front')
+                                  view='side')
 
 if __name__ == "__main__":
     main()
