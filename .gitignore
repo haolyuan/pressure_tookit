@@ -146,4 +146,4 @@ dmypy.json
 cython_debug/
 
 # initial files
-human_body_prior/
+human_body_prior
