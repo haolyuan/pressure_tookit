@@ -34,12 +34,17 @@ def main(**args):
     #     frame_data = m_data.getFrameData(ids=ids)
     #     m_pt.insole2smpl(ids,frame_data['insole'])
     # exit()
-
+    
+    basdir=args.get('basdir')
+    dataset_name=args.get('dataset')
+    seq_name=args.get('seq_name')
+    sub_ids=args.get('sub_ids')
+    
     m_cam = RGBDCamera(
-        basdir=args.get('basdir'),
-        dataset_name=args.get('dataset'),
-        sub_ids=args.get('sub_ids'),
-        seq_name=args.get('seq_name'),
+        basdir=basdir,
+        dataset_name=dataset_name,
+        sub_ids=sub_ids,
+        seq_name=seq_name,
     )
 
     m_solver = SMPLSolver(
@@ -55,48 +60,63 @@ def main(**args):
         w_joint2d=args.get('keypoint_weights'),
         w_penetrate=args.get('penetrate_weights'),
         w_contact=args.get('contact_weights'),
-        seq_name=args.get('seq_name'),
+        sub_ids=sub_ids,
+        seq_name=seq_name,
         device=device
     )
     
-    seq_name=args.get('seq_name')
+    # load init shape
+    init_A_data_path = f'{basdir}/{dataset_name}/{sub_ids}/init_param_{sub_ids}.npy'
+    init_A_data = np.load(init_A_data_path, allow_pickle=True).item()
+    init_betas = init_A_data['betas']
     
+    # import pdb;pdb.set_trace()
     if args.get('init_model'):
-        frame_data = m_data.getFrameData(ids=23)
+        select_idx = int(args.get('init_idx_start'))
+        frame_data = m_data.getFrameData(ids=select_idx,
+                                         init_shape=False)
         dv_valid,dn_valid = m_cam.preprocessDepth(frame_data['depth_map'],frame_data['mask'])
         dv_floor,dn_normal = m_data.mapDepth2Floor(dv_valid,dn_valid)
-        annot = m_solver.initShape(depth_vmap=dv_floor,depth_nmap=dn_normal,
-                           color_img=frame_data['img'],
-                           keypoints=frame_data['kp'],
-                           max_iter=args.get('maxiters'))
-        np.save(f'debug/init_param_.npy{seq_name}',annot)
+        # import pdb;pdb.set_trace()
+        annot = m_solver.initPose(init_betas=init_A_data['betas'],
+                                depth_vmap=dv_floor,
+                                depth_nmap=dn_normal,
+                                color_img=frame_data['img'],
+                                keypoints=frame_data['kp'],
+                                contact_data=frame_data['contact'],
+                                max_iter=args.get('maxiters'))
+        import pdb;pdb.set_trace()
+        np.save(f'debug/init_pose_{sub_ids}', annot)
         
     else:
         # params_path = osp.join(args.get('basdir'), args.get('dataset'), args.get('sub_ids'),
         #                        'init_param100_w_pressure.npy')
-        params_path = 'debug/init_param100.npy'
-        init_params = np.load(params_path,allow_pickle=True).item()
+        params_path = f'debug/init_pose_{sub_ids}.npy'
+        init_params = np.load(params_path, allow_pickle=True).item()
         m_solver.setInitPose(init_params=init_params)
-        frame_range = args.get('frame_range')
+        frame_start = int(args.get('init_idx_start'))
+        frame_end = int(args.get('init_idx_end'))
         
         trans_list, pose_list, betas_list = [], [], []
-        
-        for ids in range(frame_range[0],frame_range[1]+1):# frame_range[0] + 10
-            frame_data = m_data.getFrameData(ids=ids)
+        for ids in range(frame_start+ 1, frame_end+ 1):#frame_start+ 20
+            frame_data = m_data.getFrameData(ids=ids,
+                                             init_shape=False)
             dv_valid, dn_valid = m_cam.preprocessDepth(frame_data['depth_map'], frame_data['mask'])
             dv_floor, dn_normal = m_data.mapDepth2Floor(dv_valid, dn_valid)
             frame_trans, frame_pose, frame_betas =\
                 m_solver.modelTracking(
                 frame_ids=ids,
-                depth_vmap=dv_floor, depth_nmap=dn_normal,
-                color_img=frame_data['img'],keypoints=frame_data['kp'],
-                insole_data=frame_data['insole'],
+                depth_vmap=dv_floor,
+                depth_nmap=dn_normal,
+                color_img=frame_data['img'],
+                keypoints=frame_data['kp'],
+                contact_data=frame_data['contact'],
                 max_iter=args.get('maxiters'))
             # import pdb;pdb.set_trace()
             annot = {'transl': frame_trans.numpy(),
                     'pose': frame_pose.numpy(),    
                     'betas': frame_betas.numpy()}
-            np.save(osp.join(f'debug/{seq_name}/frame{ids:04d}_{ids:04d}'), annot)
+            # np.save(osp.join(f'debug/{seq_name}/frame{ids:04d}_{ids:04d}'), annot)
             trans_list.append(frame_trans)
             pose_list.append(frame_pose)
             betas_list.append(frame_betas)
@@ -109,7 +129,8 @@ def main(**args):
             'beta' : betas_seq
         }
         
-        torch.save(result_seq, f'debug/{seq_name}/tracking_result_{seq_name}.pth')
+        torch.save(result_seq, f'debug/{sub_ids}/{seq_name}/tracking_result_{seq_name}.pth')
+        import pdb; pdb.set_trace()
 
 if __name__ == "__main__":
     args = parse_config()

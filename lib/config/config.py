@@ -77,6 +77,12 @@ def parse_config(argv=None):
                         default=False,
                         action='store_true',
                         help='init or tracking')
+    parser.add_argument('--init_idx_start',
+                        default=0,
+                        help='which frame data will be used in init stage')
+    parser.add_argument('--init_idx_end',
+                        default=0,
+                        help='end frame used in tracking stage')    
     parser.add_argument('--shape_weights', default=0.01,
                         type=float, help='The weights of the Shape regularizer')
     parser.add_argument('--depth_weights', default=1.0,

@@ -93,13 +93,14 @@ def main(cfg):
     device = torch.device('cuda')
     
     motion_type = cfg.task['motion_type']
+    sub_ids = cfg.task['sub_ids']
     seq_name = cfg.task['seq_name']
     # init visualizer
     time_str = time.strftime("%m%d%H%M", time.localtime())
-    visualizer = Visualizer(cfg, time_str)
+    visualizer = Visualizer(cfg, time_str, fps=15)
 
     # init smpl result
-    init_smpl_data = torch.load(f'debug/{seq_name}/tracking_result_{seq_name}.pth')
+    init_smpl_data = torch.load(f'debug/{sub_ids}/{seq_name}/tracking_result_{seq_name}.pth')
     transl_init = init_smpl_data['trans'] # [seq_len, bs, 3]
     pose_init = init_smpl_data['pose'] # [seq_len, bs, 24, 3, 3]
     beta_init = init_smpl_data['beta'] # [seq_len, bs, 10]
@@ -125,6 +126,10 @@ def main(cfg):
         frame_pose_init = pose_init[frame_idx]
         frame_trans_init = transl_init[frame_idx]
         frame_betas_init = beta_init[frame_idx]
+        
+        # set wrist pose to zero. vposer cannot handle wrist rot
+        frame_pose_init[:, 20, :, :] = torch.eye(3)
+        frame_pose_init[:, 21, :, :] = torch.eye(3)
 
         m_smpl_pose_dict = body_pose_descompose(full_pose=frame_pose_init,
                         dtype=dtype, device=device)        
@@ -146,6 +151,13 @@ def main(cfg):
                                   visible=True,
                                   need_norm=False, 
                                   view='side')
+
+    visualizer.render_sequence_3d(verts=source_verts4view.detach().cpu().numpy(),
+                                  faces=m_smpl.faces,
+                                  save_video=True,
+                                  visible=True,
+                                  need_norm=False, 
+                                  view='front')
 
 if __name__ == "__main__":
     main()

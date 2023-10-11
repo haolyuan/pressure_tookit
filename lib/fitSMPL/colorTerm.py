@@ -7,7 +7,6 @@ import numpy as np
 from icecream import ic
 
 from lib.visualizer.renderer import modelRender
-from lib.Utils.smpl2openpose import smpl_to_openpose,JointMapper
 from lib.Utils.fileio import saveProjectedJoints
 # saveProjectedJoints(filename='debug/2d+.png',img=img,joint_projected=projected_joints)
 
@@ -54,13 +53,7 @@ class ColorTerm(nn.Module):
         self.center[:,0] = self.cam_intr[2]
         self.center[:,1] = self.cam_intr[3]
 
-        smpl2kp = smpl_to_openpose(
-            model_type='smpl', use_hands=False,
-            use_face=False,use_face_contour=False,
-            openpose_format='coco25')
-        self.smpl2kp = torch.tensor(smpl2kp,device=device).long()
         self.joint_weights = self.get_joint_weights()
-        self.joint_mapper = JointMapper(self.smpl2kp)
 
         self.robustifier = GMoF(rho=rho)
 
@@ -86,8 +79,15 @@ class ColorTerm(nn.Module):
         return color_render, depth
 
     def projectJoints(self, points):
-        device = points.device
+        """_summary_
 
+        Args:
+            points (torch.tensor(shape=1, 25, 3)): smpl 25 joints, batch_size should be 1
+
+        Returns:
+            _type_: _description_
+        """        
+        device = points.device
         points = (self.floor2color[:3, :3] @ (points.T) +
                    self.floor2color[:3, 3].reshape([3, 1])).T
 
@@ -108,7 +108,6 @@ class ColorTerm(nn.Module):
 
 
     def calcColorLoss(self, keypoints=None,points=None,img=None):
-        points = self.joint_mapper(points)
         projected_joints = self.projectJoints(points)
 
         # Calculate the weights for each joints
@@ -116,6 +115,7 @@ class ColorTerm(nn.Module):
                                      device=self.device)
         gt_joints = keypoint_data[:, :2]
         joints_conf = keypoint_data[:, 2]#.reshape(1, -1)
+        
         weights = (self.joint_weights * joints_conf).unsqueeze(dim=-1)
 
         # Calculate the distance of the projected joints from

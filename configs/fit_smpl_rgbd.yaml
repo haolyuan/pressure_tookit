@@ -11,17 +11,16 @@ depth_size:
   - 640
   - 576
 
-frame_range:
-  - 0
-  - 167
+init_idx_start: 18
+init_idx_end: 299
 
 num_shape_comps: 10
 model_gender: 'male'
 
-init_idx_start: 128
 shape_weights: 0.01
 depth_weights: 60.0
 keypoint_weights: 0.0001
 penetrate_weights: 15.0
 contact_weights: 0
 maxiters: 101
+

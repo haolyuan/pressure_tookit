@@ -28,9 +28,9 @@ class RGBDCamera(nn.Module):
         self.dataset_name = dataset_name
         self.sub_ids = sub_ids
         self.seq_name = seq_name
-        cali_path = osp.join(basdir,self.dataset_name,self.sub_ids,'RGBD',self.seq_name,'calibration.txt')
+        cali_path = osp.join(basdir,self.dataset_name,self.sub_ids,self.seq_name,'calibration.npy')
         # intr: fx,fy,cx,cy,
-        self.cIntr_cpu, self.dIntr_cpu, self.d2c_cpu = self.loadCalibrationFromTxt(cali_path)
+        self.cIntr_cpu, self.dIntr_cpu, self.d2c_cpu = self.loadCalibrationFromNpy(cali_path) #loadCalibrationFromTxt
 
         cIntr = nn.Parameter(torch.tensor(self.cIntr_cpu,dtype=self.dtype), requires_grad=False)
         self.register_parameter('cIntr', cIntr)
@@ -39,6 +39,18 @@ class RGBDCamera(nn.Module):
         d2c = nn.Parameter(torch.tensor(self.d2c_cpu, dtype=self.dtype), requires_grad=False)
         self.register_parameter('d2c', d2c)
 
+    def loadCalibrationFromNpy(self, cali_path):
+        cali_data = dict(np.load(cali_path, allow_pickle=True).item())
+        color_Intr = cali_data['color_Intr']
+        depth_Intr = cali_data['depth_Intr']
+        
+        d2c = cali_data['d2c']
+        d2c[:3,3]/=1000.
+        
+        return np.array([color_Intr['fx'], color_Intr['fy'], color_Intr['cx'], color_Intr['cy']]),\
+            np.array([depth_Intr['fx'], depth_Intr['fy'], depth_Intr['cx'], depth_Intr['cy']]),\
+            d2c
+        
     def loadCalibrationFromTxt(self,cali_path):
         fp = open(cali_path)
         lines = fp.readlines()

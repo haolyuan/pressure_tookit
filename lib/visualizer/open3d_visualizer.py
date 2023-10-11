@@ -32,7 +32,7 @@ class Visualizer(Camera):
         super().__init__(dtype, device)
         task_cfg = cfg['task']
         
-        self.output_path = osp.join('debug/visual', task_cfg['motion_type'], time_str)
+        self.output_path = osp.join('debug/visual', task_cfg['motion_type'], task_cfg['seq_name'], time_str)
         self.motion_type = task_cfg['motion_type']
         if not os.path.isdir(self.output_path):
             os.makedirs(self.output_path)
