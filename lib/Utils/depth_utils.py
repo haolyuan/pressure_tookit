@@ -66,17 +66,17 @@ def calculateFloorNormal(depth_path, xy,fx,fy,cx,cy, save_path=None):
         }
         np.save(save_path, results)
 
-    # pointCloud = pointCloud.reshape([-1,3])
-    # depth_slices_RT = (floor_rot[:3, :3] @ pointCloud.T + floor_trans.reshape([3, 1])).T
-    # trimesh.Trimesh(vertices=depth_slices_RT, process=False).export('debug/depth_slice_rot.obj')
+    pointCloud = pointCloud.reshape([-1,3])
+    depth_slices_RT = (floor_rot[:3, :3] @ pointCloud.T + floor_trans.reshape([3, 1])).T
+    trimesh.Trimesh(vertices=depth_slices_RT, process=False).export('debug/depth_slice_rot.obj')
 
     return floor_normal, floor_trans, depth2floor
 
 
 if __name__ == '__main__':
     
-    sub_id = 'S12'
-    seq_name = 'MoCap_20230422_145333'
+    sub_id = 'S01'
+    seq_name = 'MoCap_20230422_092117'
     
     cali_data = dict(np.load(f'D:/dataset/PressureDataset/20230422/{sub_id}/{seq_name}/calibration.npy',
                         allow_pickle=True).item())

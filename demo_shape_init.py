@@ -6,6 +6,7 @@ import torch
 import trimesh
 import cv2
 from icecream import ic
+from tqdm import tqdm
 
 import sys
 sys.path.append('D:/utils/pressure_toolkit')
@@ -60,7 +61,8 @@ def main(**args):
         w_joint2d=args.get('keypoint_weights'),
         w_penetrate=args.get('penetrate_weights'),
         w_contact=args.get('contact_weights'),
-        seq_name=args.get('seq_name'),
+        sub_ids=sub_ids,
+        seq_name=seq_name,
         device=device
     )
 
@@ -72,7 +74,9 @@ def main(**args):
     annot = m_solver.initShape(depth_vmap=dv_floor,depth_nmap=dn_normal,
                         color_img=frame_data['img'],
                         keypoints=frame_data['kp'],
+                        weight_data=frame_data['weight_data'],
                         max_iter=args.get('maxiters'))
+    import pdb;pdb.set_trace()
     np.save(f'{basdir}/{dataset_name}/{sub_ids}/init_param_{sub_ids}', annot)
 
 if __name__ == "__main__":

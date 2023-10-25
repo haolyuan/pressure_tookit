@@ -5,6 +5,7 @@ import numpy as np
 import torch.nn as nn
 import os.path as osp
 import trimesh
+from trimesh import load_mesh
 from smplx.utils import Struct,to_np, to_tensor
 from smplx.lbs import batch_rodrigues,batch_rigid_transform
 from smplx.vertex_ids import vertex_ids as VERTEX_IDS
@@ -94,6 +95,9 @@ JOINT_MAP = {
 }
 
 
+
+
+
 class SMPLModel(nn.Module):
     NUM_JOINTS = 23
     NUM_BODY_JOINTS = 23
@@ -119,9 +123,12 @@ class SMPLModel(nn.Module):
         shapedirs = data_struct.shapedirs
         shapedirs = shapedirs[:, :, :num_betas]
         self.register_buffer('shapedirs',to_tensor(to_np(shapedirs), dtype=dtype))
-
-        v_template = to_tensor(to_np(data_struct.v_template), dtype=dtype)
-        self.register_buffer('v_template', v_template)
+        
+        baby_mesh = load_mesh('essentials/smplify_essential/smil_template_fingers_fix.ply', process=False)
+        smil_v_template = torch.tensor(baby_mesh.vertices, dtype=self.dtype, requires_grad=False)
+        smpl_v_template = torch.tensor(data_struct.v_template, dtype=self.dtype, requires_grad=False)
+        self.register_buffer('smil_v_template', smil_v_template)
+        self.register_buffer('smpl_v_template', smpl_v_template)
 
         j_regressor = to_tensor(to_np(data_struct.J_regressor), dtype=dtype)
         self.register_buffer('J_regressor', j_regressor)
@@ -134,6 +141,8 @@ class SMPLModel(nn.Module):
         self.register_buffer('lbs_weights', lbs_weights)
 
         #SMPL Parameter
+        model_scale_opt = torch.tensor([0.7], dtype=self.dtype)
+        self.register_parameter('model_scale_opt',nn.Parameter(model_scale_opt, requires_grad=False))
         betas = torch.zeros([1, self.num_betas+1], dtype=dtype)# scale and betas
         betas[:,0] = 1
         self.register_parameter('betas',nn.Parameter(betas, requires_grad=False))
@@ -161,8 +170,44 @@ class SMPLModel(nn.Module):
         vertex_ids = VERTEX_IDS['smplh']
         self.vertex_joint_selector = VertexJointSelector(vertex_ids=vertex_ids)
         
+        # add foot plane
+        self.plane_L_init, self.plane_R_init = None, None
+        self.foot_front_r_ids, self.foot_back_r_ids, self.foot_front_l_ids, \
+            self.foot_back_l_ids = None, None, None, None
+        self.foot_ids_smplL, self.foot_ids_smplR = None, None
+
+        self.foot_ids_smplL = [3237, 3239, 3238, 3240, 3293, 3295, 3297, 3221, 3220, 3254, 3251, 3253,
+                                3250, 3296, 3300, 3261, 3263, 3264, 3262, 3306, 3305, 3228, 3229, 3276,
+                                3278, 3275, 3277, 3307, 3310, 3315, 3287, 3289, 3288, 3290, 3224, 3225,
+                                3352, 3353, 3406, 3437, 3355, 3354, 3358, 3359, 3438, 3439, 3361, 3360,
+                                3362, 3357, 3363, 3356, 3440, 3419, 3407, 3444, 3443, 3408, 3448, 3447,
+                                3430, 3449, 3450, 3442, 3441, 3420, 3446, 3445, 3421, 3451, 3452, 3422,
+                                3431, 3456, 3455, 3429, 3462, 3464, 3428, 3461, 3463, 3467, 3460, 3427,
+                                3454, 3453, 3423, 3465, 3457, 3424, 3466, 3459, 3425, 3468, 3458, 3426]
+        self.foot_ids_smplR = [6637, 6640, 6636, 6639, 6693, 6695, 6697, 6621, 6622, 6654, 6651, 6653, 
+                                6652, 6696, 6701, 6661, 6663, 6664, 6660, 6706, 6705, 6630, 6629, 6674, 
+                                6677, 6675, 6678, 6707, 6711, 6716, 6687, 6690, 6686, 6689, 6626, 6625, 
+                                6752, 6753, 6806, 6837, 6755, 6754, 6758, 6759, 6838, 6839, 6761, 6760, 
+                                6762, 6757, 6763, 6756, 6840, 6819, 6807, 6844, 6843, 6808, 6848, 6847, 
+                                6830, 6849, 6850, 6842, 6841, 6820, 6846, 6845, 6821, 6851, 6852, 6822, 
+                                6831, 6856, 6855, 6829, 6862, 6863, 6828, 6861, 6864, 6867, 6860, 6827, 
+                                6854, 6853, 6823, 6865, 6857, 6824, 6866, 6859, 6826, 6868, 6858, 6825]
+
+        back_L_faces = np.loadtxt('essentials/foot_related/back_L_faces.txt', dtype=int).tolist()
+        self.back_L_faces = torch.tensor(back_L_faces).unsqueeze(0)
+        front_L_faces = np.loadtxt('essentials/foot_related/front_L_faces.txt', dtype=int).tolist()
+        self.front_L_faces = torch.tensor(front_L_faces).unsqueeze(0)
+        front_R_faces = np.loadtxt('essentials/foot_related/front_R_faces.txt', dtype=int).tolist()
+        self.front_R_faces = torch.tensor(front_R_faces).unsqueeze(0)        
+        back_R_faces = np.loadtxt('essentials/foot_related/back_R_faces.txt', dtype=int).tolist()
+        self.back_R_faces = torch.tensor(back_R_faces).unsqueeze(0)        
         
+                            
     def updateShape(self):
+        # update v_template
+        self.v_template = ((self.smpl_v_template * self.model_scale_opt) +\
+            (1. - self.model_scale_opt) * self.smil_v_template).to(self.shapedirs.device)
+        
         blend_shape = torch.einsum('bl,mkl->bmk', [self.betas[:,1:], self.shapedirs])
         v_shaped = self.v_template + blend_shape
         self.v_shaped = v_shaped * self.betas[:,0]
@@ -197,16 +242,22 @@ class SMPLModel(nn.Module):
         
         # add extra joints in origin smpl
         joints = self.vertex_joint_selector(verts, J_transformed)
+        trimesh.Trimesh(vertices=verts[0].detach().cpu().numpy(), faces=self.faces).export('debug/smpl.obj')
+        trimesh.Trimesh(vertices=joints[0].detach().cpu().numpy()).export('debug/smpl_jts.obj')
         # apply extra joints in SPIN
         extra_joints = self.vertices2joints(self.J_regressor_extra, verts)
         joints_54 = torch.cat([joints, extra_joints], dim=1)
-        joints_54 = joints_54[:, self.joint_map, :]
+        joints_49 = joints_54[:, self.joint_map, :]
+        
+        # plane transform
+        v_plane = self.updatePlane(T=T)
         
         # apply trans
         verts += self.transl.unsqueeze(dim=1)
+        joints_49 += self.transl.unsqueeze(dim=1)
+        v_plane += self.transl.unsqueeze(dim=1)
         joints_54 += self.transl.unsqueeze(dim=1)
-        
-        return verts, joints_54
+        return verts, joints_49, joints_54, v_plane
 
     @torch.no_grad()
     def setPose(self, **params_dict):
@@ -214,7 +265,97 @@ class SMPLModel(nn.Module):
             if param_name in params_dict:
                 param[:] = torch.tensor(params_dict[param_name])
 
+    def initPlane(self):
+        assert self.v_shaped != None, "must init smpl shape first"
+        
+        # seperate foots into two part
+        self.foot_front_r_ids = [i for i in range(36)] + [36, 41, 42, 47, 48, 49]
+        self.foot_back_r_ids = [60, 61, 62, 69, 70, 71] + [i for i in range(72, 96)]
+        self.foot_front_l_ids = self.foot_front_r_ids
+        self.foot_back_l_ids = self.foot_back_r_ids
+        
+        # construct y offset in smpl foots
+        v_smpl_foot_L, v_smpl_foot_R =\
+            self.v_shaped[0][self.foot_ids_smplL, :] ,self.v_shaped[0][self.foot_ids_smplR, :]
+            # .detach().cpu().numpy()
+            # .detach().cpu().numpy()        
+        y_smpl_foot_L = v_smpl_foot_L[:, 1]
+        y_smpl_foot_R = v_smpl_foot_R[:, 1]            
+        floor_L, floor_R = torch.min(y_smpl_foot_L), torch.min(y_smpl_foot_R)
+        # offset_L, offset_R = (y_smpl_foot_L - floor_L).tolist(), (y_smpl_foot_R - floor_R).tolist()
+        self.plane_L_init, self.plane_R_init =\
+            torch.zeros_like(v_smpl_foot_L, device=self.v_shaped.device),\
+            torch.zeros_like(v_smpl_foot_R, device=self.v_shaped.device)
 
+        self.plane_L_init[:, 0], self.plane_L_init[:, 2] = v_smpl_foot_L[:, 0], v_smpl_foot_L[:, 2]
+        temp = [floor_L.unsqueeze(0) for i in range(self.plane_L_init.shape[0])]
+        self.plane_L_init[:, 1] = torch.concat(temp)
+        
+        self.plane_R_init[:, 0], self.plane_R_init[:, 2] = v_smpl_foot_R[:, 0], v_smpl_foot_R[:, 2]
+        temp = [floor_R.unsqueeze(0) for i in range(self.plane_R_init.shape[0])]
+        self.plane_R_init[:, 1] = torch.concat(temp)
 
+        self.foot_ids_back_smplL =  np.array(self.foot_ids_smplL)[self.foot_back_l_ids].tolist()
+        self.foot_ids_back_smplR = np.array(self.foot_ids_smplR)[self.foot_back_r_ids].tolist()
+        self.foot_ids_front_smplL = np.array(self.foot_ids_smplL)[self.foot_front_l_ids].tolist()
+        self.foot_ids_front_smplR = np.array(self.foot_ids_smplR)[self.foot_front_r_ids].tolist()
 
+        self.plane_back_L_init = self.plane_L_init[self.foot_back_l_ids, :]
+        self.plane_back_R_init = self.plane_R_init[self.foot_back_r_ids, :]
+        self.plane_front_L_init = self.plane_L_init[self.foot_front_l_ids, :]
+        self.plane_front_R_init = self.plane_R_init[self.foot_front_r_ids, :]
+        
+        
+        
+        # trimesh.Trimesh(vertices=self.v_shaped[0].detach().cpu().numpy(), faces=self.faces).\
+        #     export('debug/plane_visual/smpl_mesh.obj')
+        # trimesh.Trimesh(vertices=self.plane_R_init[self.foot_front_r_ids, :]).\
+        #     export('debug/plane_visual/plane_front_R_init.obj')
+        # trimesh.Trimesh(vertices=self.plane_L_init[self.foot_front_l_ids, :]).\
+        #     export('debug/plane_visual/plane_front_L_init.obj')
+        # trimesh.Trimesh(self.plane_R_init[self.foot_back_r_ids, :]).\
+        #     export('debug/plane_visual/plane_back_R_init.obj')
+        # trimesh.Trimesh(self.plane_L_init[self.foot_back_l_ids, :]).\
+        #     export('debug/plane_visual/plane_back_L_init.obj')
+            
+    def updatePlane(self, T):
+        T_back_l = T[:, self.foot_ids_back_smplL, :, :]
+        T_back_r = T[:, self.foot_ids_back_smplR, :, :]
+        T_front_l = T[:, self.foot_ids_front_smplL, :, :]
+        T_front_r = T[:, self.foot_ids_front_smplR, :, :] 
+
+        # back left foot plane
+        homogen_coord_back_l = torch.ones([1, self.plane_back_L_init.shape[0], 1], dtype=self.dtype,
+                                   device=self.plane_back_L_init.device)
+        
+        v_plane_homo_back_l = torch.cat([self.plane_back_L_init.expand(1, -1, -1),
+                                               homogen_coord_back_l], dim=2)
+        v_plane_back_l = torch.matmul(T_back_l, v_plane_homo_back_l.unsqueeze(-1)).squeeze(-1)[:, :, :3]
+        
+        # back right foot plane
+        homogen_coord_back_r = torch.ones([1, self.plane_back_R_init.shape[0], 1], dtype=self.dtype,
+                                   device=self.plane_back_R_init.device)
+        v_plane_homo_back_r = torch.cat([self.plane_back_R_init.expand(1, -1, -1),
+                                               homogen_coord_back_r], dim=2)
+        v_plane_back_r = torch.matmul(T_back_r, v_plane_homo_back_r.unsqueeze(-1)).squeeze(-1)[:, :, :3]
+
+        # front right foot plane
+        homogen_coord_front_r = torch.ones([1, self.plane_front_R_init.shape[0], 1], dtype=self.dtype,
+                                   device=self.plane_front_R_init.device)
+        v_plane_homo_front_r = torch.cat([self.plane_front_R_init.expand(1, -1, -1),
+                                               homogen_coord_front_r], dim=2)
+        v_plane_front_r = torch.matmul(T_front_r, v_plane_homo_front_r.unsqueeze(-1)).squeeze(-1)[:, :, :3]
+        
+        # front left foot plane
+        homogen_coord_front_l = torch.ones([1, self.plane_front_L_init.shape[0], 1], dtype=self.dtype,
+                                   device=self.plane_front_L_init.device)
+        v_plane_homo_front_l = torch.cat([self.plane_front_L_init.expand(1, -1, -1),
+                                               homogen_coord_front_l], dim=2)
+        v_plane_front_l = torch.matmul(T_front_l, v_plane_homo_front_l.unsqueeze(-1)).squeeze(-1)[:, :, :3]
+        
+        v_plane = torch.concat([v_plane_back_l, v_plane_front_l, v_plane_back_r, v_plane_front_r], dim = 1)
+        
+        return v_plane
+
+        
 

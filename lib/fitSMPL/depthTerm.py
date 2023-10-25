@@ -7,6 +7,7 @@ import os.path as osp
 import trimesh
 import math
 import numpy as np
+import torch.nn.functional as F
 from icecream import ic
 
 from lib.visualizer.renderer import modelRender
@@ -37,6 +38,7 @@ class DepthTerm(nn.Module):
 
         self.renderer = modelRender(cam_intr,img_W,img_H)
 
+        self.foot_ids_surfaces = np.load('essentials/foot_related/foot_ids_surfaces.npy').tolist()
 
 
     def findLiveVisibileVerticesIndex(self, mesh, floor2depth, near_size=4, th=0.005):
@@ -55,61 +57,101 @@ class DepthTerm(nn.Module):
 
         return flame_visible_idx
 
-    def findDepthCorrs(self,depth_vmap=None,depth_nmap=None,
+    def findCorrs(self,depth_vmap=None,depth_nmap=None,
                        live_verts=None, faces=None,
                        floor2depth=None,
-                       icp_near_size=32,icp_theta_thresh=np.pi / 6,
+                       icp_near_size=32,icp_theta_thresh=np.pi / 12,
                        icp_dist_thresh=0.05):
         # live_verts_cpu = live_verts.detach().cpu().numpy()[0]
         live_mesh = trimesh.Trimesh(vertices=live_verts,
                         faces=faces, process=False)
         live_normals = live_mesh.vertex_normals
-        smpl_visible_idx = self.findLiveVisibileVerticesIndex(live_mesh,floor2depth)
+        smpl_visible_idx_w_foot = self.findLiveVisibileVerticesIndex(live_mesh,floor2depth)
+        smpl_visible_idx = [idx for idx in smpl_visible_idx_w_foot if idx not in self.foot_ids_surfaces ]
+        # lower_body and live_verts[idx, 1] < 0.8
+
         verts_src = live_verts[smpl_visible_idx,:]
         normal_src = live_normals[smpl_visible_idx,:]
+        
 
-        kdtree = scipy.spatial.cKDTree(depth_vmap)
-        dists, indices = kdtree.query(verts_src, k=icp_near_size)
+        # depth_vmap_lower_body_ids = np.where(depth_vmap[:, 1]<0.8)
+        # depth_vmap_lower_body = depth_vmap[depth_vmap_lower_body_ids, :].squeeze(0)
+        # depth_nmap_lower_body = depth_nmap[depth_vmap_lower_body_ids, :].squeeze(0)
 
-        tar_normals = depth_nmap[indices.reshape(-1)].reshape(-1, icp_near_size, 3)
+        # find smpl verts currs to depth, each smpl v corres to one depth v
+        kdtree_depth = scipy.spatial.cKDTree(depth_vmap)# depth_vmap_lower_body
+        dists_smpl2depth, indices_smpl2depth = kdtree_depth.query(verts_src, k=icp_near_size)
 
-        cosine = np.einsum('ijk,ik->ij', tar_normals, normal_src)
-        valid = (dists < icp_dist_thresh) & (cosine > math.cos(icp_theta_thresh))
-        valid_indices = np.argmax(valid, axis=1)
-        indices_corr = indices[np.arange(valid.shape[0]), valid_indices]
+        tar_normals_smpl2depth = depth_nmap[indices_smpl2depth.reshape(-1)].reshape(-1, icp_near_size, 3)# depth_nmap_lower_body
 
+        cosine_smpl2depth = np.einsum('ijk,ik->ij', tar_normals_smpl2depth, normal_src)
+        valid_smpl2depth = (dists_smpl2depth < icp_dist_thresh) & (cosine_smpl2depth > math.cos(icp_theta_thresh))
+        valid_indices_smpl2depth = np.argmax(valid_smpl2depth, axis=1)
+        indices_corr_smpl2depth = indices_smpl2depth[np.arange(valid_smpl2depth.shape[0]), valid_indices_smpl2depth]
+
+        # find depth verts currs to smpl, each depth v corres to one smpl v
+        kdtree_depth2smpl = scipy.spatial.cKDTree(verts_src)
+        dists_depth2smpl, indices_depth2smpl = kdtree_depth2smpl.query(depth_vmap, k=icp_near_size)#depth_vmap_lower_body
+        
+        tar_normals_depth2smpl = normal_src[indices_depth2smpl.reshape(-1)].reshape(-1, icp_near_size, 3)
+        cosine_depth2smpl = np.einsum('ijk,ik->ij', tar_normals_depth2smpl, depth_nmap)#depth_nmap_lower_body
+        valid_depth2smpl = (dists_depth2smpl < icp_dist_thresh) & (cosine_depth2smpl > math.cos(icp_theta_thresh))
+        valid_indices_depth2smpl = np.argmax(valid_depth2smpl, axis=1)
+        indices_corr_depth2smpl = indices_depth2smpl[np.arange(valid_depth2smpl.shape[0]), valid_indices_depth2smpl]
+        
         # save
-        # tar_verts = depth_vmap[indices_corr]
-        # with open('debug/vposer/corrs%d.obj'%frame_idx, 'w') as fp:
-        #     for vi in range(verts_src.shape[0]):
-        #         fp.write('v %f %f %f\n' % (verts_src[vi, 0], verts_src[vi, 1], verts_src[vi, 2]))
-        #         fp.write('v %f %f %f\n' % (tar_verts[vi, 0], tar_verts[vi, 1], tar_verts[vi, 2]))
-        #     for li in range(verts_src.shape[0]):
-        #         fp.write('l %d %d\n' % (2*li + 1, 2*li+2))
+        tar_verts = depth_vmap[indices_corr_smpl2depth]#depth_vmap_lower_body
+        with open('debug/corrs_smpl2depth%d.obj', 'w') as fp:
+            for vi in range(verts_src.shape[0]):
+                fp.write('v %f %f %f\n' % (verts_src[vi, 0], verts_src[vi, 1], verts_src[vi, 2]))
+                fp.write('v %f %f %f\n' % (tar_verts[vi, 0], tar_verts[vi, 1], tar_verts[vi, 2]))
+            for li in range(verts_src.shape[0]):
+                fp.write('l %d %d\n' % (2*li + 1, 2*li+2))
         # exit()
-        return smpl_visible_idx,indices_corr
+        tar_verts = verts_src[indices_corr_depth2smpl]
+        with open('debug/corrs_depth2smpl%d.obj', 'w+') as fp:
+            for vi in range(depth_vmap.shape[0]):# depth_vmap_lower_body
+                fp.write('v %f %f %f\n' % (depth_vmap[vi, 0], depth_vmap[vi, 1], depth_vmap[vi, 2]))#depth_vmap_lower_body
+                fp.write('v %f %f %f\n' % (tar_verts[vi, 0], tar_verts[vi, 1], tar_verts[vi, 2]))
+            for li in range(depth_vmap.shape[0]):# depth_vmap_lower_body
+                fp.write('l %d %d\n' % (2*li + 1, 2*li+2))
+        return smpl_visible_idx, indices_corr_smpl2depth, indices_corr_depth2smpl#,\
+                # depth_vmap_lower_body
 
     def calcDepthLoss(self,iter=0,depth_vmap=None, depth_nmap=None,
                       live_verts=None,faces=None):
         live_verts_cpu = live_verts.detach().cpu().numpy()[0]
         # live_mesh = trimesh.Trimesh(vertices=live_verts_cpu,
         #                 faces=faces, process=False)
-        smpl_ids,depth_ids = self.findDepthCorrs(depth_vmap=depth_vmap, depth_nmap=depth_nmap,
+        smpl_ids_vis, depth_ids, smpl_ids = self.findCorrs(depth_vmap=depth_vmap, depth_nmap=depth_nmap,
                                                  live_verts=live_verts_cpu,faces=faces,
-                                                 floor2depth=self.floor2depth)
+                                                 floor2depth=self.floor2depth)#, depth_vmap_lower_body
 
         depth_vmap = torch.tensor(depth_vmap,dtype=self.dtype,device=self.device)
+        # depth_vmap_lower_body = torch.tensor(depth_vmap_lower_body,dtype=self.dtype,device=self.device)
         # depth_nmap = torch.tensor(depth_nmap,dtype=self.dtype,device=self.device)
-        smpl_ids = torch.tensor(smpl_ids,device=self.device).long()
-        depth_ids = torch.tensor(depth_ids,device=self.device).long()
-        src_verts = live_verts[0,smpl_ids,:]
-        tar_verts = depth_vmap[depth_ids,:]
-        delta = src_verts-tar_verts
-        dist = torch.norm(delta, dim=-1)
-        depth_loss = torch.mean(dist,dim=0)
-
+        
+        # calculate smpl2depth corres loss
+        smpl_ids_vis = torch.tensor(smpl_ids_vis, device=self.device).long()
+        # depth_ids = torch.tensor(depth_ids, device= self.device).long()
+        src_verts_smpl2depth = live_verts[0, smpl_ids_vis,:]
+        tar_verts_smpl2depth = depth_vmap[depth_ids, :]#depth_vmap_lower_body
+        # calculate depth2smpl corres loss
+        src_verts_depth2smpl = depth_vmap #  depth_vmap_lower_body
+        tar_verts_depth2smpl = live_verts[0, smpl_ids_vis,:][smpl_ids, :]
+        
+        
+        # trimesh.Trimesh(vertices=src_verts_smpl2depth.detach().cpu().numpy()).export('debug/smpl_selected.obj')
+        # trimesh.Trimesh(vertices=tar_verts.cpu().numpy()).export('debug/depth_selected.obj')
+        
+        delta_smpl2depth = src_verts_smpl2depth- tar_verts_smpl2depth
+        dist_smpl2depth = torch.norm(delta_smpl2depth, dim=-1)
+        delta_depth2smpl = src_verts_depth2smpl- tar_verts_depth2smpl
+        dist_depth2smpl = torch.norm(delta_depth2smpl, dim=-1)
+        # import pdb;pdb.set_trace()
+                    
+        depth_loss = torch.mean(dist_smpl2depth, dim=0) + torch.mean(dist_depth2smpl, dim=0)#
         # if iter % 100 == 0:
         #     saveCorrsAsOBJ('debug/MoCap_20230422_145422/%04d_corrs.obj' % iter,
         #                    src_verts.detach().cpu().numpy(), tar_verts.detach().cpu().numpy())
         return depth_loss
-

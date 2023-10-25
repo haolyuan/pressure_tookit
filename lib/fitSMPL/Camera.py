@@ -10,6 +10,7 @@ import torch
 import torch.nn as nn
 from icecream import ic
 from smplx.lbs import transform_mat
+import trimesh, cv2
 from lib.Utils.depth_utils import depth2PointCloud#(depth_map,fx,fy,cx,cy)
 
 
@@ -31,7 +32,6 @@ class RGBDCamera(nn.Module):
         cali_path = osp.join(basdir,self.dataset_name,self.sub_ids,self.seq_name,'calibration.npy')
         # intr: fx,fy,cx,cy,
         self.cIntr_cpu, self.dIntr_cpu, self.d2c_cpu = self.loadCalibrationFromNpy(cali_path) #loadCalibrationFromTxt
-
         cIntr = nn.Parameter(torch.tensor(self.cIntr_cpu,dtype=self.dtype), requires_grad=False)
         self.register_parameter('cIntr', cIntr)
         dIntr = nn.Parameter(torch.tensor(self.dIntr_cpu, dtype=self.dtype), requires_grad=False)
@@ -109,7 +109,32 @@ class RGBDCamera(nn.Module):
         return depth_nraw
 
     def preprocessDepth(self,depth_map,mask_map):
-
+        # # reshape mask map
+        # x_max, y_max = 0, 0
+        # x_min, y_min = mask_map.shape[0], mask_map.shape[1]
+        
+        # for i in range(mask_map.shape[0]):
+        #     for j in range(mask_map.shape[1]):
+        #         temp_x, temp_y = None, None
+        #         if (mask_map[i][j] > 0.5) & (depth_map[i][j] > 1e-6):
+        #             temp_x = i
+        #             temp_y = j
+        #         if temp_x != None:
+        #             if temp_x > x_max:
+        #                 x_max = temp_x
+        #         if temp_x != None :
+        #             if temp_x < x_min:
+        #                 x_min = temp_x
+        #         if temp_y != None:
+        #             if temp_y > y_max:
+        #                 y_max = temp_y
+        #         if temp_y != None:
+        #             if temp_y < y_min:
+        #                 y_min = temp_y
+        # delta_x = int(1/12 * (x_max - x_min))
+        # delta_y = int(1/12 * (y_max - y_min))
+        
+        # mask_map[x_max:x_max+delta_x, y_min:y_max] = 0.6
         _mask_map = mask_map.reshape(-1)
         _depth_map = depth_map.reshape(-1)
         idx_valid = np.where((_mask_map > 0.5) & (_depth_map > 1e-6))[0]

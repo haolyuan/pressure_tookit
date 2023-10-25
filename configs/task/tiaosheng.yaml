@@ -1,6 +1,6 @@
 motion_type: 'tiaosheng'
 sub_ids: 'S01'
-seq_name: 'MoCap_20230422_095330'
+seq_name: 'MoCap_20230422_094530'
 
 
 output_path_debug: 'results/debug/tiaosheng'

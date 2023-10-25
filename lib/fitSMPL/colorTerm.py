@@ -63,10 +63,42 @@ class ColorTerm(nn.Module):
     def get_joint_weights(self):
         # The weights for the joint terms in the optimization
         optim_weights = np.ones(25,dtype=np.float32)
-        # These joints are ignored becaue SMPL has no neck.
-        optim_weights[1] = 0.
+        # # These joints are ignored becaue SMPL has no neck.
+        optim_weights[1] = 0
         # put higher weights on knee and elbow joints for mimic'ed poses
         optim_weights[[3,6,10,13,4,7]] = 2
+        
+        # add head joints weight, smpl head is smaller than RTMpose detacted
+        # we focus on height but not weight
+        # optim_weights[0] = 0
+        # optim_weights[1] = 0
+        # optim_weights[17] = 0
+        optim_weights[17] = 0
+        optim_weights[18] = 0
+        
+    
+        optim_weights[19] = 0
+        optim_weights[20] = 0
+        optim_weights[21] = 0
+        
+        optim_weights[22] = 0       
+        optim_weights[23] = 0       
+        optim_weights[24] = 0       
+        # hand corre
+        # optim_weights[1] = 7
+
+        # optim_weights[4] = 10
+        # optim_weights[3] = 5
+        # optim_weights[7] = 10
+        # optim_weights[6] = 5
+
+        # optim_weights[8] = 5
+        
+        
+        
+        optim_weights = optim_weights / np.sum(optim_weights)
+
+        
         return torch.tensor(optim_weights, dtype=self.dtype,device=self.device)
 
     def get_model2data(self):
@@ -109,19 +141,26 @@ class ColorTerm(nn.Module):
 
     def calcColorLoss(self, keypoints=None,points=None,img=None):
         projected_joints = self.projectJoints(points)
-
         # Calculate the weights for each joints
         keypoint_data = torch.tensor(keypoints, dtype=torch.float32,
                                      device=self.device)
         gt_joints = keypoint_data[:, :2]
         joints_conf = keypoint_data[:, 2]#.reshape(1, -1)
         
-        weights = (self.joint_weights * joints_conf).unsqueeze(dim=-1)
+        
+        # for idx in range(len(joints_conf)):
+        #     if joints_conf[idx] < 0.65:
+        #         joints_conf[idx] = 0
 
+        
+        weights = (self.joint_weights * joints_conf)
+        weights = weights / torch.sum(weights)
+        # import pdb;pdb.set_trace()
+        weights = weights.unsqueeze(dim=-1)
         # Calculate the distance of the projected joints from
         # the ground truth 2D detections
         joint_diff = self.robustifier(gt_joints - projected_joints)
         # joint_loss = (torch.sum(weights ** 2 * joint_diff) *
         #               self.data_weight ** 2)
-        joint_loss = torch.sum(weights ** 2 * joint_diff)
-        return joint_loss
+        joint_loss = torch.sum(weights * joint_diff)# ** 2
+        return joint_loss, projected_joints

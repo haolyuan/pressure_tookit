@@ -5,11 +5,13 @@ import trimesh
 import os
 import time
 from tqdm import tqdm
+from scipy.spatial.transform import Rotation as R
 
 import sys
 sys.path.append('D:/utils/pressure_toolkit') 
 from lib.visualizer.open3d_visualizer import Visualizer
 from lib.fitSMPL.SMPLModelRefine import smpl_model_refined
+from lib.fitSMPL.SMPLModel import SMPLModel
 from lib.Utils.refineSMPL_utils import compute_normal_batch,\
     body_pose_descompose, body_pose_compose
     
@@ -104,14 +106,17 @@ def main(cfg):
     transl_init = init_smpl_data['trans'] # [seq_len, bs, 3]
     pose_init = init_smpl_data['pose'] # [seq_len, bs, 24, 3, 3]
     beta_init = init_smpl_data['beta'] # [seq_len, bs, 10]
+    model_scale_opt = init_smpl_data['model_scale_opt']
     # import pdb;pdb.set_trace()
     # import pdb; pdb.set_trace()
     
     # init smpl model
-    m_smpl = smpl_model_refined(
-            model_root='../../bodyModels/smpl',
-            num_betas=10,
-            bs=1,
+    # m_smpl = smpl_model_refined(
+    #         model_root='../../bodyModels/smpl',
+    #         num_betas=10,
+    #         gender='male')
+    m_smpl = SMPLModel(
+            model_path='../../bodyModels/smpl',
             gender='male')
     m_smpl.to(device)
     
@@ -123,22 +128,42 @@ def main(cfg):
     source_verts_list = []
     for frame_idx in range(0, len(transl_init)):
         
+        # smpl_data = torch.load(f'debug/frame_debug/{sub_ids}/{seq_name}/{frame_idx}.pth')
+        # import pdb;pdb.set_trace()
         frame_pose_init = pose_init[frame_idx]
         frame_trans_init = transl_init[frame_idx]
-        frame_betas_init = beta_init[frame_idx]
+        frame_betas_init = beta_init
+        frame_model_scale_opt = model_scale_opt
         
         # set wrist pose to zero. vposer cannot handle wrist rot
         frame_pose_init[:, 20, :, :] = torch.eye(3)
         frame_pose_init[:, 21, :, :] = torch.eye(3)
 
-        m_smpl_pose_dict = body_pose_descompose(full_pose=frame_pose_init,
-                        dtype=dtype, device=device)        
+
+        global_rot_mat = frame_pose_init[:, 0, :, :]
+        body_pose_mat = frame_pose_init[:, 1:, :, :]
+        body_pose = np.zeros((1, 69))
+        global_rot_aa = R.from_matrix(global_rot_mat.cpu().numpy()).as_rotvec()
+        for i in range(23):
+            body_pose[:, i*3:i*3+3] = R.from_matrix(body_pose_mat[:, i, :, :].cpu().numpy()).as_rotvec()
+        
+        
+        # m_smpl_pose_dict = body_pose_descompose(full_pose=frame_pose_init,
+        #                 dtype=dtype, device=device)     
+        m_smpl_pose_dict = {}
         m_smpl_pose_dict['transl'] = frame_trans_init.to(device)
         m_smpl_pose_dict['betas'] = frame_betas_init.to(device)
-        m_smpl.setPose(**m_smpl_pose_dict)
-        m_smpl.update_shape()
+        m_smpl_pose_dict['global_orient'] = torch.tensor(global_rot_aa, device=device, dtype=dtype)
+        m_smpl_pose_dict['body_pose'] = torch.tensor(body_pose, device=device, dtype=dtype)
+        m_smpl_pose_dict['frame_model_scale_opt'] = torch.tensor(frame_model_scale_opt, device=device, dtype=dtype)
         
-        live_verts, _, _ = m_smpl.update_pose()
+        m_smpl.setPose(**m_smpl_pose_dict)
+        m_smpl.updateShape()
+        m_smpl.initPlane()
+        
+        live_verts, _, _, _ = m_smpl.updatePose(m_smpl.body_pose)
+        # trimesh.Trimesh(vertices=live_verts[0].detach().cpu().numpy(), faces=m_smpl.faces).export('debug/visual_smpl.obj')
+        # import pdb;pdb.set_trace()
         source_verts = live_verts
 
         source_verts_list.append(source_verts)   

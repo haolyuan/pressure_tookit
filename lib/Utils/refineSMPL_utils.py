@@ -158,3 +158,23 @@ def body_pose_compose(pose_dict,
             output_pose[i, j, :3, :3] = R.from_rotvec(full_pose[i, j * 3: j * 3 + 3].cpu().numpy()).as_matrix()
     
     return torch.tensor(output_pose, device=device, dtype=dtype)
+
+def compute_normal_batch(vertices, faces):
+
+    bs, nv = vertices.shape[:2]
+    bs, nf = faces.shape[:2]
+
+    vert_norm = torch.zeros(bs * nv, 3).type_as(vertices)
+    tris = face_vertices(vertices, faces)
+    face_norm = F.normalize(
+        torch.cross(tris[:, :, 1] - tris[:, :, 0], tris[:, :, 2] - tris[:, :, 0]), dim=-1
+    )
+    faces = (faces + (torch.arange(bs).type_as(faces) * nv)[:, None, None]).view(-1, 3)
+
+    vert_norm[faces[:, 0]] += face_norm.view(-1, 3)
+    vert_norm[faces[:, 1]] += face_norm.view(-1, 3)
+    vert_norm[faces[:, 2]] += face_norm.view(-1, 3)
+
+    vert_norm = F.normalize(vert_norm, dim=-1).view(bs, nv, 3)
+
+    return vert_norm

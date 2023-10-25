@@ -68,7 +68,6 @@ def main(**args):
     # load init shape
     init_A_data_path = f'{basdir}/{dataset_name}/{sub_ids}/init_param_{sub_ids}.npy'
     init_A_data = np.load(init_A_data_path, allow_pickle=True).item()
-    init_betas = init_A_data['betas']
     
     # import pdb;pdb.set_trace()
     if args.get('init_model'):
@@ -77,34 +76,49 @@ def main(**args):
                                          init_shape=False)
         dv_valid,dn_valid = m_cam.preprocessDepth(frame_data['depth_map'],frame_data['mask'])
         dv_floor,dn_normal = m_data.mapDepth2Floor(dv_valid,dn_valid)
-        # import pdb;pdb.set_trace()
-        annot = m_solver.initPose(init_betas=init_A_data['betas'],
+        annot = m_solver.initPose(init_shape=[init_A_data['betas'], init_A_data['model_scale_opt']],
                                 depth_vmap=dv_floor,
                                 depth_nmap=dn_normal,
                                 color_img=frame_data['img'],
                                 keypoints=frame_data['kp'],
                                 contact_data=frame_data['contact'],
+                                cliff_pose=frame_data['cliff_pose'],
                                 max_iter=args.get('maxiters'))
-        import pdb;pdb.set_trace()
         np.save(f'debug/init_pose_{sub_ids}', annot)
         
+        import pdb;pdb.set_trace()
+        
     else:
-        # params_path = osp.join(args.get('basdir'), args.get('dataset'), args.get('sub_ids'),
-        #                        'init_param100_w_pressure.npy')
-        params_path = f'debug/init_pose_{sub_ids}.npy'
-        init_params = np.load(params_path, allow_pickle=True).item()
-        m_solver.setInitPose(init_params=init_params)
+
+        # params_path = f'debug/init_pose_{sub_ids}.npy'
+        # init_params = np.load(params_path, allow_pickle=True).item()
+        # m_solver.setInitPose(init_params=init_params)
         frame_start = int(args.get('init_idx_start'))
         frame_end = int(args.get('init_idx_end'))
         
-        trans_list, pose_list, betas_list = [], [], []
-        for ids in range(frame_start+ 1, frame_end+ 1):#frame_start+ 20
+        trans_list, pose_list = [], []
+        for ids in range(frame_start+ 1, frame_end + 1):#frame_start+ 20
+
+            # single view test
+            params_path = f'debug/frame_debug/{sub_ids}/{seq_name}/{ids-1}.pth' # 
+            init_params = torch.load(params_path)
+            m_solver.setInitPose(init_params=init_params)            
+            
             frame_data = m_data.getFrameData(ids=ids,
                                              init_shape=False)
             dv_valid, dn_valid = m_cam.preprocessDepth(frame_data['depth_map'], frame_data['mask'])
             dv_floor, dn_normal = m_data.mapDepth2Floor(dv_valid, dn_valid)
+            # frame_trans, frame_pose, frame_betas =\
+            #     m_solver.modelTracking(
+            #     frame_ids=ids,
+            #     depth_vmap=dv_floor,
+            #     depth_nmap=dn_normal,
+            #     color_img=frame_data['img'],
+            #     keypoints=frame_data['kp'],
+            #     contact_data=frame_data['contact'],
+            #     max_iter=args.get('maxiters'))
             frame_trans, frame_pose, frame_betas =\
-                m_solver.modelTracking(
+                m_solver.modelTracking_single_frame(
                 frame_ids=ids,
                 depth_vmap=dv_floor,
                 depth_nmap=dn_normal,
@@ -116,17 +130,21 @@ def main(**args):
             annot = {'transl': frame_trans.numpy(),
                     'pose': frame_pose.numpy(),    
                     'betas': frame_betas.numpy()}
-            # np.save(osp.join(f'debug/{seq_name}/frame{ids:04d}_{ids:04d}'), annot)
+            
+            # np.save(osp.join(f'debug/{seq_name}/frame{ids:04d}'), annot)
+            
             trans_list.append(frame_trans)
             pose_list.append(frame_pose)
-            betas_list.append(frame_betas)
+            
+            
         trans_seq =  torch.stack(trans_list)
         pose_seq = torch.stack(pose_list)
-        betas_seq = torch.stack(betas_list)
+
         result_seq = {
             'pose' : pose_seq,
             'trans' : trans_seq,
-            'beta' : betas_seq
+            'beta' : init_params['betas'],
+            'model_scale_opt': init_params['model_scale_opt']
         }
         
         torch.save(result_seq, f'debug/{sub_ids}/{seq_name}/tracking_result_{seq_name}.pth')
