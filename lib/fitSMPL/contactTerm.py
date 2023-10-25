@@ -116,9 +116,9 @@ class ContactTerm(nn.Module):
                 transl_loss_dict['back_l'] =\
                     torch.mean(torch.linalg.norm(temp_offset, dim=2))
             else:
-                transl_loss_dict['back_l'] = torch.tensor(np.array([0]), dtype=self.dtype, device=self.device)
+                transl_loss_dict['back_l'] = 0
         else:
-            transl_loss_dict['back_l'] = torch.tensor(np.array([0]), dtype=self.dtype, device=self.device)
+            transl_loss_dict['back_l'] = 0
 
         if len(curr_plane_ids_front_l) != 0:
             inter_ids = list(set(curr_plane_ids_front_l).\
@@ -129,9 +129,9 @@ class ContactTerm(nn.Module):
                 transl_loss_dict['front_l'] =\
                     torch.mean(torch.linalg.norm(temp_offset, dim=2))
             else:
-                transl_loss_dict['front_l'] = torch.tensor(np.array([0]), dtype=self.dtype, device = self.device)
+                transl_loss_dict['front_l'] = 0
         else:
-            transl_loss_dict['front_l'] = torch.tensor(np.array([0]), dtype=self.dtype, device = self.device)
+            transl_loss_dict['front_l'] = 0
 
         if len(curr_plane_ids_back_r) != 0:
             inter_ids = list(set(curr_plane_ids_back_r).\
@@ -142,9 +142,9 @@ class ContactTerm(nn.Module):
                 transl_loss_dict['back_r'] =\
                     torch.mean(torch.linalg.norm(temp_offset, dim=2))
             else:
-                transl_loss_dict['back_r'] = torch.tensor(np.array([0]), dtype=self.dtype, device=self.device)
+                transl_loss_dict['back_r'] = 0
         else:
-            transl_loss_dict['back_r'] = torch.tensor(np.array([0]), dtype=self.dtype, device=self.device)
+            transl_loss_dict['back_r'] = 0
 
         if len(curr_plane_ids_front_r) != 0:
             inter_ids = list(set(curr_plane_ids_front_r).\
@@ -155,9 +155,9 @@ class ContactTerm(nn.Module):
                 transl_loss_dict['front_r'] =\
                     torch.mean(torch.linalg.norm(temp_offset, dim=2))
             else:
-                transl_loss_dict['front_r'] = torch.tensor(np.array([0]), dtype=self.dtype, device=self.device)
+                transl_loss_dict['front_r'] = 0
         else:
-            transl_loss_dict['front_r'] = torch.tensor(np.array([0]), dtype=self.dtype, device=self.device) 
+            transl_loss_dict['front_r'] = 0
   
         # print(transl_loss_dict['back_l'], transl_loss_dict['front_l'], transl_loss_dict['back_r'], transl_loss_dict['front_r'])
         

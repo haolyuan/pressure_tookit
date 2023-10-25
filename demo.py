@@ -103,10 +103,14 @@ def main(**args):
                 # single view test
                 params_path = f'debug/frame_debug/{sub_ids}/{seq_name}/{ids-1}.pth' # 
                 init_params = torch.load(params_path)
+                print(f'load data from {params_path}')
+                
                 m_solver.setInitPose(init_params=init_params)            
             except:
                 params_path = f'debug/init_pose_{sub_ids}.npy'
                 init_params = np.load(params_path, allow_pickle=True).item()
+                print(f'load data from {params_path}')
+                
                 m_solver.setInitPose(init_params=init_params)
 
             frame_data = m_data.getFrameData(ids=ids,

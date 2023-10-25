@@ -2,7 +2,7 @@
 dataset: '20230422'
 basdir: 'D:/dataset/PressureDataset'
 sub_ids: 'S01'
-seq_name: 'MoCap_20230422_094530'
+seq_name: 'MoCap_20230422_095140'
 output_dir: 'output'
 color_size:
   - 1280
@@ -12,8 +12,8 @@ depth_size:
   - 576
 
 
-init_idx_start: 0
-init_idx_end: 40
+init_idx_start: 40
+init_idx_end: 163
 
 num_shape_comps: 10
 model_gender: 'male'

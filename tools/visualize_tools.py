@@ -155,7 +155,7 @@ def main(cfg):
         m_smpl_pose_dict['betas'] = frame_betas_init.to(device)
         m_smpl_pose_dict['global_orient'] = torch.tensor(global_rot_aa, device=device, dtype=dtype)
         m_smpl_pose_dict['body_pose'] = torch.tensor(body_pose, device=device, dtype=dtype)
-        m_smpl_pose_dict['frame_model_scale_opt'] = torch.tensor(frame_model_scale_opt, device=device, dtype=dtype)
+        m_smpl_pose_dict['model_scale_opt'] = torch.tensor(frame_model_scale_opt, device=device, dtype=dtype)
         
         m_smpl.setPose(**m_smpl_pose_dict)
         m_smpl.updateShape()

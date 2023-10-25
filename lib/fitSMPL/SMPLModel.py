@@ -141,7 +141,7 @@ class SMPLModel(nn.Module):
         self.register_buffer('lbs_weights', lbs_weights)
 
         #SMPL Parameter
-        model_scale_opt = torch.tensor([0.7], dtype=self.dtype)
+        model_scale_opt = torch.tensor([1], dtype=self.dtype)
         self.register_parameter('model_scale_opt',nn.Parameter(model_scale_opt, requires_grad=False))
         betas = torch.zeros([1, self.num_betas+1], dtype=dtype)# scale and betas
         betas[:,0] = 1
