@@ -98,12 +98,17 @@ def main(**args):
         
         trans_list, pose_list = [], []
         for ids in range(frame_start+ 1, frame_end + 1):#frame_start+ 20
-
-            # single view test
-            params_path = f'debug/frame_debug/{sub_ids}/{seq_name}/{ids-1}.pth' # 
-            init_params = torch.load(params_path)
-            m_solver.setInitPose(init_params=init_params)            
             
+            try:
+                # single view test
+                params_path = f'debug/frame_debug/{sub_ids}/{seq_name}/{ids-1}.pth' # 
+                init_params = torch.load(params_path)
+                m_solver.setInitPose(init_params=init_params)            
+            except:
+                params_path = f'debug/init_pose_{sub_ids}.npy'
+                init_params = np.load(params_path, allow_pickle=True).item()
+                m_solver.setInitPose(init_params=init_params)
+
             frame_data = m_data.getFrameData(ids=ids,
                                              init_shape=False)
             dv_valid, dn_valid = m_cam.preprocessDepth(frame_data['depth_map'], frame_data['mask'])

@@ -12,7 +12,7 @@ depth_size:
   - 576
 
 
-init_idx_start: 1
+init_idx_start: 0
 init_idx_end: 40
 
 num_shape_comps: 10
