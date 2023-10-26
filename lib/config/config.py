@@ -42,6 +42,8 @@ def parse_config(argv=None):
                         help='The name of the dataset that will be used')
     parser.add_argument('--basdir', default='E:/dataset', type=str,
                         help='Base dir')
+    parser.add_argument('--label_output_dir', default='', type=str,
+                        help='pose/mesh/shape data dir')
     parser.add_argument('--sub_ids', default='S12', type=str,
                         help='Subject ids')
     parser.add_argument('--seq_name', default='MoCap_20230422_145333', type=str,
@@ -64,7 +66,7 @@ def parse_config(argv=None):
                         help='frame range')
     # body model model
     parser.add_argument('--model_folder',
-                        default='../../bodyModels/smpl',
+                        default='essentials/bodyModels/smpl',
                         type=str,
                         help='The directory where the models are stored.')
     parser.add_argument('--num_shape_comps', default=10, type=int,

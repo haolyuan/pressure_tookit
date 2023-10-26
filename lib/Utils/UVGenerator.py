@@ -15,7 +15,7 @@ class UVGenerator():
                  mask_path='essentials/smpl_uv/UVMASK.png'):
         mask_img = cv2.imread(mask_path)
         self.uv_mask = np.sum(mask_img, axis=-1) < 1e-6
-        self.uv_template = cv2.imread("../../bodyModels/smpl/smpl_uv/smpl_uv_20200910.png")
+        self.uv_template = cv2.imread("essentials/bodyModels/smpl/smpl_uv/smpl_uv_20200910.png")
         # self.uv_mask = mask_img<1e-6
         with open(UV_pickle, 'rb') as f:
             tmp = pickle.load(f)

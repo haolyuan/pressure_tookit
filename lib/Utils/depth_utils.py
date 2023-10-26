@@ -5,6 +5,7 @@ import numpy as np
 from scipy.spatial.transform import Rotation as Rot
 import trimesh
 from icecream import ic
+import os
 
 def calcSceneDepth(scene_name,start_frame,end_frame):
     scene_list = []
@@ -41,7 +42,8 @@ def normalizeFloor(floor_normal,floor_trans=([0,0,0]), target_normal=np.array([0
     return floor_mat
 
 def calculateFloorNormal(depth_path, xy,fx,fy,cx,cy, save_path=None):
-    depth_map = imageio.imread(depth_path).astype(np.float32) / 1000.  # (576,640)
+    # depth_map = imageio.imread(depth_path).astype(np.float32) / 1000.  # (576,640)
+    depth_map = cv2.imread(depth_path, -1).astype(np.float32) / 1000.
     pointCloud = depth2PointCloud(depth_map,fx,fy,cx,cy)  # (576,640,3)
     # trimesh.Trimesh(vertices=pointCloud.reshape(-1, 3),process=False).export('debug/pointCloud.obj')
     depth_slices = (pointCloud[xy[0]:xy[1], xy[2]:xy[3], :]).reshape([-1, 3])
@@ -78,15 +80,17 @@ if __name__ == '__main__':
     sub_id = 'S01'
     seq_name = 'MoCap_20230422_092117'
     
-    cali_data = dict(np.load(f'D:/dataset/PressureDataset/20230422/{sub_id}/{seq_name}/calibration.npy',
+    os.makedirs(f'/data/yuanhaolei/PressureDataset_label/20230422/{sub_id}',exist_ok=True)
+
+    cali_data = dict(np.load(f'/data/PressureDataset/20230422/{sub_id}/{seq_name}/calibration.npy',
                         allow_pickle=True).item())
     
     # height range, weight range
     floor_normal, floor_trans, depth2floor = calculateFloorNormal(
-        f'D:/dataset/PressureDataset/20230422/{sub_id}/{seq_name}/depth/016.png',
+        f'/data/PressureDataset/20230422/{sub_id}/{seq_name}/depth/003.png',
         [509, 566, 237, 468],
         fx=cali_data['depth_Intr']['fx'],
         fy=cali_data['depth_Intr']['fy'],
         cx=cali_data['depth_Intr']['cx'],
         cy=cali_data['depth_Intr']['cy'],
-        save_path=f'D:/dataset/PressureDataset/20230422/{sub_id}/floor_{sub_id}.npy')
+        save_path=f'/data/yuanhaolei/PressureDataset_label/20230422/{sub_id}/floor_{sub_id}.npy')

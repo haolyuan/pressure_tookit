@@ -1,8 +1,9 @@
 # Flags for data set and data dirs
 dataset: '20230422'
-basdir: 'D:/dataset/PressureDataset'
+basdir: '/data/PressureDataset'
+label_output_dir: '/data/yuanhaolei/PressureDataset_label'
 sub_ids: 'S01'
-seq_name: 'MoCap_20230422_095140'
+seq_name: 'MoCap_20230422_095831'
 output_dir: 'output'
 color_size:
   - 1280
@@ -12,8 +13,8 @@ depth_size:
   - 576
 
 
-init_idx_start: 40
-init_idx_end: 163
+init_idx_start: 67
+init_idx_end: 107
 
 num_shape_comps: 10
 model_gender: 'male'

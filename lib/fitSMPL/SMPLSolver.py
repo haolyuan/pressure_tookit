@@ -7,14 +7,12 @@ import copy
 import os.path as osp
 import pickle as pkl
 from tqdm import trange,tqdm
-from human_body_prior.tools.model_loader import load_model
-from human_body_prior.models.vposer_model import VPoser
 from smplx.vertex_joint_selector import VertexJointSelector
 from smplx.vertex_ids import vertex_ids as VERTEX_IDS
 from icecream import ic
 from scipy.spatial.transform import Rotation as R
 import torch.nn.functional as F
-
+from xrprimer.utils.log_utils import setup_logger
 
 from lib.fitSMPL.SMPLModel import SMPLModel
 from lib.fitSMPL.depthTerm import DepthTerm
@@ -37,6 +35,7 @@ class SMPLSolver():
                  w_verts3d=10,w_joint2d=0.01,
                  w_betas=0.1,
                  w_penetrate=10,w_contact=0,
+                 label_output_dir=None,
                  sub_ids=None,
                  seq_name=None,
                  device=None,
@@ -49,10 +48,10 @@ class SMPLSolver():
         self.floor2depth = np.linalg.inv(depth2floor)
         self.depth2color = depth2color
 
-        vp, ps = load_model(expr_dir='D:/utils/Vposer_models/V02_05', model_code=VPoser,
-                            remove_words_in_model_weights='vp_model.',
-                            disable_grad=True)
-        self.vp = vp.to(self.device)
+        # vp, ps = load_model(expr_dir='D:/utils/Vposer_models/V02_05', model_code=VPoser,
+        #                     remove_words_in_model_weights='vp_model.',
+        #                     disable_grad=True)
+        # self.vp = vp.to(self.device)
 
 
         gmm_term = MaxMixturePriorLoss(prior_folder='essentials/smplify_essential')
@@ -109,6 +108,7 @@ class SMPLSolver():
         
         self.sub_ids = sub_ids
         self.seq_name = seq_name
+        self.label_output_dir = label_output_dir
         self.results_dir = osp.join('debug', sub_ids, seq_name)
         self.results_pose_dir = osp.join('debug/frame_debug', sub_ids, seq_name)
         self.pose_debug_dir = osp.join(self.results_pose_dir, 'single_frame')
@@ -118,7 +118,9 @@ class SMPLSolver():
             os.makedirs(self.results_pose_dir)
             os.makedirs(self.pose_debug_dir)
             
-
+        self.logger = setup_logger(logger_name='file written',
+                                   logger_path=f'./smplsolver_logger_{sub_ids}_{seq_name}.log')
+        
     def adjust_learning_rate(self, optimizer, epoch):
         """
         Sets the learning rate to the initial LR decayed by x every y epochs
@@ -160,9 +162,9 @@ class SMPLSolver():
         body_pose[:,47] = -1.2
         body_pose[:,50] = 1.2
         body_pose = torch.tensor(body_pose, dtype=self.dtype, device=self.device)
-
-        amass_body_poZ = self.vp.encode(body_pose[:,:-6]).mean
-        amass_body_pose_rec = self.vp.decode(amass_body_poZ)['pose_body'].contiguous().view(-1, 63)
+        
+        # amass_body_poZ = self.vp.encode(body_pose[:,:-6]).mean
+        # amass_body_pose_rec = self.vp.decode(amass_body_poZ)['pose_body'].contiguous().view(-1, 63)
         # vposer初始脚有一个x方向的旋转
         # body_pose_rec = torch.cat([amass_body_pose_rec,torch.zeros([1,6],device=self.device)],dim=1)
         
@@ -170,7 +172,6 @@ class SMPLSolver():
             'betas': betas,
             'transl': transl,
             'body_pose': body_pose,
-            'body_poseZ': amass_body_poZ,
             'model_scale_opt': model_scale_opt
         }
         self.m_smpl.setPose(**params_dict)
@@ -178,28 +179,21 @@ class SMPLSolver():
         self.m_smpl.initPlane()     
         
         # ```````````````` shape optimization``````````````````
-        self.m_smpl.transl.requires_grad = True
-        self.m_smpl.global_orient.requires_grad = True       
         self.m_smpl.betas.requires_grad = True
         self.m_smpl.model_scale_opt.requires_grad = True
-        self.m_smpl.body_poseZ.requires_grad = False
-        self.m_smpl.body_pose.requires_grad = True
+        # self.m_smpl.body_pose.requires_grad = True
         
         
         # ==========main loop====================
-        rough_optimizer_shape = torch.optim.Adam([self.m_smpl.global_orient, self.m_smpl.transl,
-                                              self.m_smpl.body_pose,
-                                              self.m_smpl.model_scale_opt,self.m_smpl.betas
-                                              ], lr=0.01) #
+        rough_optimizer_shape = torch.optim.Adam([self.m_smpl.global_orient,
+                                                  self.m_smpl.transl,
+                                                  self.m_smpl.body_pose,
+                                                  self.m_smpl.model_scale_opt,
+                                                  self.m_smpl.betas], lr=0.01)
         for iter in trange(max_iter):
             self.adjust_learning_rate(rough_optimizer_shape, iter)
             self.m_smpl.updateShape()
             self.m_smpl.initPlane()
-            # amass_body_pose_rec = self.vp.decode(self.m_smpl.body_poseZ)['pose_body'].contiguous().view(-1, 63)
-            # body_pose_rec = torch.cat([amass_body_pose_rec, torch.zeros([1, 6], device=self.device)], dim=1)
-            # live_verts, live_joints, live_joints_smpl, live_plane = self.m_smpl.updatePose(body_pose=body_pose_rec)
-            # trimesh.Trimesh(vertices=live_joints_smpl[0][:45, :].detach().cpu().numpy()).export('debug/smpl.obj')
-            # trimesh.Trimesh(vertices=live_joints_smpl[0][45:, :].detach().cpu().numpy()).export('debug/smpl_extra.obj')
             
             live_verts, live_joints, _, live_plane = self.m_smpl.updatePose(body_pose=self.m_smpl.body_pose)
             
@@ -216,19 +210,13 @@ class SMPLSolver():
             joint_loss *= self.w_joint2d
             betas_reg_loss = torch.abs(self.m_smpl.betas- init_betas).mean() * self.w_betas# 
 
-            # contact_data = [[1,1,1,1,1,1,1,1,1], [1,1,1,1,1,1,1,1,1]]
-            # contact_ids, _, _ = self.contact_term.contact2smpl(contact_data=np.array(contact_data))
-            # penetrate_loss = self.contact_term.calcPenetrateLoss(
-            #         live_verts=live_verts, contact_ids=contact_ids) * self.w_penetrate
-            
-            # penetrate_loss_1 = (torch.mean(torch.abs(live_plane[:, :live_plane.shape[1]//2, 1])) +\
-            #     torch.mean(torch.abs(live_plane[:, live_plane.shape[1]//2:, 1]))) * self.w_penetrate
             plane_faces_list = [self.m_smpl.back_L_faces, self.m_smpl.back_R_faces, self.m_smpl.front_L_faces, self.m_smpl.front_R_faces]
             target_n_list = np.array([[0,1.0,0], [0,1.0,0], [0,1.0,0], [0,1.0,0]])
             norm_loss = self.contact_term.calcNormLoss(source_verts=live_plane,
                                                        verts_faces_list=plane_faces_list,
                                                        target_n_list=torch.tensor(target_n_list)) * self.norm_weight
             
+            # assume all foot are on floor
             penetrate_loss = torch.mean(torch.abs(live_plane[:, :30, 1]) +\
                 torch.abs(live_plane[:, 30+42:30*2+42, 1] ))* self.w_penetrate  +\
                 torch.mean(torch.abs(live_plane[:, 30:30+42, 1] ) +\
@@ -262,12 +250,12 @@ class SMPLSolver():
                 #  + betas_reg_loss # + weight_loss # 
                 
             # fix wrist/hand/foot
-            loss_geo += torch.norm(self.m_smpl.body_pose[:, 19*3:19*3+3]) +\
-                torch.norm(self.m_smpl.body_pose[:, 20*3:20*3+3]) +\
-                torch.norm(self.m_smpl.body_pose[:, 21*3:21*3+3]) +\
-                torch.norm(self.m_smpl.body_pose[:, 22*3:22*3+3]) +\
-                torch.norm(self.m_smpl.body_pose[:, 6*3:7*3+3]) +\
-                torch.norm(self.m_smpl.body_pose[:, 9*3:10*3+3])
+            loss_geo += torch.norm(self.m_smpl.body_pose[:, 19*3: 19*3+3]) +\
+                torch.norm(self.m_smpl.body_pose[:, 20*3: 20*3+3]) +\
+                torch.norm(self.m_smpl.body_pose[:, 21*3: 21*3+3]) +\
+                torch.norm(self.m_smpl.body_pose[:, 22*3: 22*3+3]) +\
+                torch.norm(self.m_smpl.body_pose[:, 6*3: 7*3+3]) +\
+                torch.norm(self.m_smpl.body_pose[:, 9*3: 10*3+3])
                 
                 
             rough_optimizer_shape.zero_grad()
@@ -277,8 +265,6 @@ class SMPLSolver():
             if iter % 50 == 0:
                 _verts = live_verts.detach().cpu().numpy()[0]
                 trimesh.Trimesh(vertices=_verts,faces=self.m_smpl.faces,process=False).export('debug/init_%04d.obj'%iter)
-                trimesh.Trimesh(vertices=live_joints.detach().cpu().numpy()[0],process=False)\
-                    .export('debug/init_%04d_jts_shape.obj'%iter)
 
                 projected_joints = self.color_term.projectJoints(source_color_joints_3d)
                 projected_joints = projected_joints.detach().cpu().numpy()
@@ -304,7 +290,6 @@ class SMPLSolver():
         annot['body_pose'] = self.m_smpl.body_pose.detach().cpu().numpy()
         annot['body_poseZ'] = self.m_smpl.body_poseZ.detach().cpu().numpy()
         annot['model_scale_opt'] = self.m_smpl.model_scale_opt.detach().cpu().numpy()
-        import pdb;pdb.set_trace()
         return annot
 
     def initPose(self,
@@ -312,6 +297,7 @@ class SMPLSolver():
                 depth_vmap=None,depth_nmap=None,
                 color_img=None,keypoints=None,
                 contact_data=None,cliff_pose=None,
+                frame_idx=0,
                 max_iter=1000):
         #==========set smpl params====================
         betas = torch.tensor(init_shape[0],dtype=self.dtype,device=self.device)
@@ -327,30 +313,35 @@ class SMPLSolver():
         body_pose_cliff = torch.tensor(cliff_pose[:, 3:], dtype=self.dtype, device=self.device)
         body_pose = body_pose_cliff
 
-        amass_body_poZ = self.vp.encode(body_pose_cliff[:,:-6]).mean
+        # amass_body_poZ = self.vp.encode(body_pose_cliff[:,:-6]).mean
         # amass_body_pose_rec = self.vp.decode(amass_body_poZ)['pose_body'].contiguous().view(-1, 63)
         
         params_dict = {
             'betas':betas,
             'transl':transl,
             'body_pose':body_pose,
-            'body_poseZ':amass_body_poZ,
             'model_scale_opt':model_scale_opt,
         }
         self.m_smpl.setPose(**params_dict)
         self.m_smpl.updateShape()
         self.m_smpl.initPlane()
         
-        T_verts, _, _,  T_plane = self.m_smpl.updatePose(body_pose=body_pose_cliff)
-        trimesh.Trimesh(vertices=T_verts[0].detach().cpu().numpy(), faces=self.m_smpl.faces).export('debug/t_smpl.obj')
-        trimesh.Trimesh(vertices=T_plane[0].detach().cpu().numpy()).export('debug/t_plane.obj')
+        # T_verts, _, _,  T_plane = self.m_smpl.updatePose(body_pose=body_pose_cliff)
+        # trimesh.Trimesh(vertices=T_verts[0].detach().cpu().numpy(), faces=self.m_smpl.faces).export('debug/t_smpl.obj')
+        # trimesh.Trimesh(vertices=T_plane[0].detach().cpu().numpy()).export('debug/t_plane.obj')
         
         contact_ids, _, _ = self.contact_term.contact2smpl(np.array(contact_data))
-        assert len(set(contact_ids)) == 96*2
+
+        # some time not all 1
+        # assert len(set(contact_ids)) == 96*2
         
         
         self.m_smpl.body_pose.requires_grad = True
-        self.m_smpl.body_poseZ.requires_grad = True
+        self.m_smpl.model_scale_opt.requires_grad = False
+        self.m_smpl.betas.requires_grad = False
+        self.m_smpl.transl.requires_grad = True
+        self.m_smpl.global_orient.requires_grad = True
+        self.m_smpl.body_poseZ.requires_grad = False
         # ==========main loop====================
         rough_optimizer_pose = torch.optim.Adam([self.m_smpl.global_orient,
                                             self.m_smpl.transl,
@@ -375,6 +366,7 @@ class SMPLSolver():
                                                         img=color_img)
             joint_loss *= self.w_joint2d
             betas_reg_loss = torch.square(self.m_smpl.betas).mean() * self.w_betas
+            
 
             # if iter < max_iter//2:
             #     self.m_smpl.body_poseZ.requires_grad = True
@@ -391,26 +383,26 @@ class SMPLSolver():
 
             # body norm not correct
             # calculate norm direction in xoz
-            source_v4norm = live_joints_smpl[:, 1:4, :]
-            source_face_norm = F.normalize(
-                torch.cross(source_v4norm[:, 0, :] - source_v4norm[:, 2, :],
-                            source_v4norm[:, 0, :] - source_v4norm[:, 1, :]),
-                dim=-1
-            )
-            source_face_norm_x, source_face_norm_z =\
-                source_face_norm[:, 0], source_face_norm[:, 2]
+            # source_v4norm = live_joints_smpl[:, 1:4, :]
+            # source_face_norm = F.normalize(
+            #     torch.cross(source_v4norm[:, 0, :] - source_v4norm[:, 2, :],
+            #                 source_v4norm[:, 0, :] - source_v4norm[:, 1, :]),
+            #     dim=-1
+            # )
+            # source_face_norm_x, source_face_norm_z =\
+            #     source_face_norm[:, 0], source_face_norm[:, 2]
             
-            source_face_norm_xoz = F.normalize(torch.concat([source_face_norm_x, source_face_norm_z]), dim=0)
+            # source_face_norm_xoz = F.normalize(torch.concat([source_face_norm_x, source_face_norm_z]), dim=0)
             
-            target_v4norm_idx = np.where(depth_vmap[:, 1]<0.001)
-            target_v4norm = depth_vmap[target_v4norm_idx, :]
+            # target_v4norm_idx = np.where(depth_vmap[:, 1]<0.001)
+            # target_v4norm = depth_vmap[target_v4norm_idx, :]
             
-            target_face_norm_x, target_face_norm_z =\
-                -1 * torch.tensor(np.average(target_v4norm[:, :, 0]), device=self.device, dtype=self.dtype).unsqueeze(0),\
-                -1 * torch.tensor(np.average(target_v4norm[:, :, 2]), device=self.device, dtype=self.dtype).unsqueeze(0)
+            # target_face_norm_x, target_face_norm_z =\
+            #     -1 * torch.tensor(np.average(target_v4norm[:, :, 0]), device=self.device, dtype=self.dtype).unsqueeze(0),\
+            #     -1 * torch.tensor(np.average(target_v4norm[:, :, 2]), device=self.device, dtype=self.dtype).unsqueeze(0)
                 
-            target_face_norm_xoz = F.normalize(torch.concat([target_face_norm_x, target_face_norm_z]), dim=0)
-            body_face_loss = 1 - torch.dot(source_face_norm_xoz, target_face_norm_xoz)
+            # target_face_norm_xoz = F.normalize(torch.concat([target_face_norm_x, target_face_norm_z]), dim=0)
+            # body_face_loss = 1 - torch.dot(source_face_norm_xoz, target_face_norm_xoz)
             
             
             
@@ -445,8 +437,16 @@ class SMPLSolver():
                 saveProjectedJoints(filename=f'{self.results_dir}/target_{iter:04d}.png',
                                     img=copy.deepcopy(color_img),
                                     joint_projected=target_color_joints[:, :2])      
-        trimesh.Trimesh(vertices=live_plane[0].detach().cpu().numpy()).export(f'{self.results_dir}/result_plane.obj')          
+        # trimesh.Trimesh(vertices=live_plane[0].detach().cpu().numpy()).export(f'{self.results_dir}/result_plane.obj')          
 
+        
+        live_verts, _, _, _ = self.m_smpl.updatePose(body_pose=self.m_smpl.body_pose)
+        _verts = live_verts.detach().cpu().numpy()[0]
+        trimesh.Trimesh(vertices=_verts, faces=self.m_smpl.faces, process=False).\
+            export(f'{self.label_output_dir}/mesh/{self.sub_ids}/{self.seq_name}/init_{frame_idx:03d}_{iter:04d}.obj')
+        
+        self.logger.info(f'save mesh at {self.label_output_dir}/mesh/{self.sub_ids}/{self.seq_name}/init_{frame_idx:03d}_{iter:04d}.obj, init pose')
+        
         annot = {}
         annot['global_orient'] = self.m_smpl.global_orient.detach().cpu().numpy()
         annot['transl'] = self.m_smpl.transl.detach().cpu().numpy()
@@ -458,20 +458,21 @@ class SMPLSolver():
         annot['body_poseZ'] = self.m_smpl.body_poseZ.detach().cpu().numpy()
         annot['model_scale_opt'] = self.m_smpl.model_scale_opt.detach().cpu().numpy()
         
+        np.savez_compressed(f'{self.label_output_dir}/smpl_pose/{self.sub_ids}/{self.seq_name}/init_{frame_idx:03d}_{iter:04d}.npz', annot)
+        self.logger.info(f'save pose at {self.label_output_dir}/smpl_pose/{self.sub_ids}/{self.seq_name}/init_{frame_idx:03d}_{iter:04d}.npz, init pose')
+        
         return annot
 
     def setInitPose(self,init_params=None):
         betas = torch.tensor(init_params['betas'],dtype=self.dtype,device=self.device)
         transl = torch.tensor(init_params['transl'],dtype=self.dtype,device=self.device)
         body_pose = torch.tensor(init_params['body_pose'], dtype=self.dtype, device=self.device)
-        body_poseZ = torch.tensor(init_params['body_poseZ'], dtype=self.dtype, device=self.device)
         global_rot = torch.tensor(init_params['global_orient'], dtype=self.dtype, device=self.device)
         model_scale_opt = torch.tensor(init_params['model_scale_opt'], dtype=self.dtype, device=self.device)
         params_dict = {
             'betas':betas,
             'transl':transl,
             'body_pose':body_pose,
-            'body_poseZ':body_poseZ,
             'global_orient':global_rot,
             'model_scale_opt':model_scale_opt
         }
@@ -496,6 +497,8 @@ class SMPLSolver():
                       max_iter=1000):
 
         contact_ids, _, _ = self.contact_term.contact2smpl(np.array(contact_data))
+        
+        
         optimizer = torch.optim.Adam([self.m_smpl.global_orient, self.m_smpl.transl,
                                             self.m_smpl.body_poseZ], lr=self.init_lr)
         pbar = trange(max_iter)
@@ -545,6 +548,8 @@ class SMPLSolver():
                     contact_data=contact_data,
                     foot_plane_ids_smplL=[self.m_smpl.foot_ids_back_smplL, self.m_smpl.foot_ids_front_smplL],
                     foot_plane_ids_smplR=[self.m_smpl.foot_ids_back_smplR, self.m_smpl.foot_ids_front_smplR])*self.w_temp_foot
+            
+            
             
             loss_geo = depth_loss  + foot_temp_loss# + temp_pose_loss+ joint_loss
             
@@ -629,123 +634,29 @@ class SMPLSolver():
 
         # contact gt
         contact_ids, _, _ = self.contact_term.contact2smpl(np.array(contact_data))
+        
+        foot_contact_l = False if all(item == 0 for item in contact_data[0]) else True 
+        foot_contact_r = False if all(item == 0 for item in contact_data[1]) else True
+
         # 2d gt
         target_color_joints = torch.tensor(keypoints, device=self.device)[self.halpemap, :]
         target_color_joints_conf = target_color_joints[:, 2]
 
 
-        trimesh.Trimesh(vertices=depth_vmap,process=False).export(osp.join(self.results_dir,'frame%d_depth.obj'%frame_ids))
-        
-        # stage 0: optim vposer
-        # self.m_smpl.global_orient.requires_grad = False
-        # self.m_smpl.body_pose.requires_grad = True
-        # self.m_smpl.body_poseZ.requires_grad = False
-
-        # optimizer_0 = torch.optim.Adam([self.m_smpl.body_pose,
-        #                                 self.m_smpl.transl], lr=self.init_lr)#,self.m_smpl.global_orient self.m_smpl.body_poseZ,
-        # iter_0 = max_iter
-        # pbar = trange(iter_0)       
-        # for iter in pbar:
-        #     self.adjust_learning_rate(optimizer_0, iter)
-        #     pbar.set_description("Frame[%03d]:" % frame_ids)
-        #     # amass_body_pose_rec = self.vp.decode(self.m_smpl.body_poseZ)['pose_body'].contiguous().view(-1, 63)
-        #     # body_pose_rec = torch.cat([amass_body_pose_rec, torch.zeros([1, 6], device=self.device)], dim=1)
-        #     # live_verts, live_joints, _, live_plane = self.m_smpl.updatePose(body_pose=body_pose_rec)
-            
-        #     live_verts, live_joints, _, live_plane = self.m_smpl.updatePose(body_pose=self.m_smpl.body_pose)
-
-        #     depth_loss = self.depth_term.calcDepthLoss(iter=iter,
-        #         depth_vmap=depth_vmap, depth_nmap=depth_nmap,
-        #         live_verts=live_verts, faces=self.m_smpl.faces)*self.w_verts3d
-        #     source_color_joints = live_joints[:, self.openposemap, :].squeeze(0)
-
-        #     joint_loss, source_joints = self.color_term.calcColorLoss(keypoints=target_color_joints,
-        #                                                points=source_color_joints,
-        #                                                img=color_img)
-        #     joint_loss *= self.w_joint2d
-
-        
-        #     # plane loss to fix foot
-        #     if iter == 0:
-        #         foot_temp_loss = torch.zeros(1, device=self.device, dtype=self.dtype)*self.w_temp_foot
-                
-        #         # trimesh.Trimesh(vertices=live_verts[0].detach().cpu().numpy(), faces=self.m_smpl.faces).\
-        #         #     export(f'{self.results_dir}/iter_smpl_0.obj')
-        #         # trimesh.Trimesh(vertices=live_plane[0].detach().cpu().numpy()).\
-        #         #     export(f'{self.results_dir}/iter_plane_0.obj')
-                    
-        #         self.contact_term.update_foot_plane(
-        #             foot_plane=live_plane,
-        #             contact_data=contact_data,
-        #             foot_plane_ids_smplL=[self.m_smpl.foot_ids_back_smplL, self.m_smpl.foot_ids_front_smplL],
-        #             foot_plane_ids_smplR=[self.m_smpl.foot_ids_back_smplR, self.m_smpl.foot_ids_front_smplR])
-        #         # import pdb;pdb.set_trace()
-        #         # depth_color = self.color_term.projectJoints(torch.tensor(depth_vmap, device=self.device, dtype=self.dtype))
-        #         # saveProjectedJoints(filename=osp.join(self.results_dir,'frame%04d_depth_in_color.png'%(frame_ids)),
-        #         #                     img=color_img.copy(),
-        #         #                     joint_projected=depth_color[:,:2])
-
-        #     loss_geo_0 =  joint_loss + depth_loss
-            
-        #     # gmm_loss
-        #     pose_prior_loss = self.gmm_term.forward(body_pose=self.m_smpl.body_pose)
-        #     loss_geo_0 += pose_prior_loss * 0.0005
-            
-        #     # temp loss for low conf 2d joints
-        #     if target_color_joints_conf[3] < 0.65: # RElbow, need fix RShoulder
-        #         loss_geo_0 += torch.norm(self.pre_pose[:, 16*3: 16*3+3] - self.m_smpl.body_pose[:, 16*3:16*3+3])
-        #         if iter%10 == 0:
-        #             print(self.pre_pose[:, 16*3: 16*3+3],self.m_smpl.body_pose[:, 16*3: 16*3+3])
-        #     if target_color_joints_conf[4] < 0.65: # RWrist, need fix RElbow
-        #         loss_geo_0 += torch.norm(self.pre_pose[:, 18*3: 18*3+3] - self.m_smpl.body_pose[:, 18*3:18*3+3])
-        #         if iter%10 == 0:
-        #             print(self.pre_pose[:, 18*3: 18*3+3], self.m_smpl.body_pose[:, 18*3: 18*3+3])           
-        #     if target_color_joints_conf[6] < 0.65: # LElbow, need fix LShoulder
-        #         loss_geo_0 += torch.norm(self.pre_pose[:, 15*3: 15*3+3] - self.m_smpl.body_pose[:, 15*3: 15*3+3])    
-        #         if iter%10 == 0:
-        #             print(self.pre_pose[:, 15*3: 15*3+3], self.m_smpl.body_pose[:, 15*3: 15*3+3])
-        #     if target_color_joints_conf[7] < 0.65: # LWrist, need fix LElbow
-        #         loss_geo_0 += torch.norm(self.pre_pose[:, 17*3: 17*3+3] - self.m_smpl.body_pose[:, 17*3: 17*3+3])  
-        #         if iter%10 == 0:
-        #             print(self.pre_pose[:, 17*3: 17*3+3], self.m_smpl.body_pose[:, 17*3: 17*3+3])
-            
-        #     # fix wrist and hand aa
-        #     loss_geo_0 += torch.norm(self.m_smpl.body_pose[:, 19*3:19*3+3]) +\
-        #         torch.norm(self.m_smpl.body_pose[:, 20*3:20*3+3]) +\
-        #         torch.norm(self.m_smpl.body_pose[:, 21*3:21*3+3]) +\
-        #         torch.norm(self.m_smpl.body_pose[:, 22*3:22*3+3])
-            
-        #     # fix head aa and neck
-        #     loss_geo_0 += torch.norm(self.m_smpl.body_pose[:, 14*3: 14*3+ 3]) +\
-        #         torch.norm(self.m_smpl.body_pose[:, 11*3: 11*3+ 3])
-
-        #     if iter%10 == 0:
-        #         os.makedirs(f'{self.pose_debug_dir}/{frame_ids}', exist_ok=True)
-        #         trimesh.Trimesh(vertices=live_verts[0].detach().cpu().numpy(), faces=self.m_smpl.faces).\
-        #             export(f'{self.pose_debug_dir}/{frame_ids}/iter_smpl_{iter}_stage_0.obj')
-        #         saveProjectedJoints(filename=f'{self.pose_debug_dir}/{frame_ids}/iter_smpl_{iter}_source_stage_0.png',
-        #                     img=color_img.copy(),
-        #                     joint_projected=source_joints)
-        #         saveProjectedJoints(filename=f'{self.pose_debug_dir}/{frame_ids}/iter_smpl_target_stage_0.png',
-        #                     img=color_img.copy(),
-        #                     joint_projected=target_color_joints)
-
-            
-        #     optimizer_0.zero_grad()
-        #     loss_geo_0.backward()
-        #     optimizer_0.step()
+        # trimesh.Trimesh(vertices=depth_vmap,process=False).export(osp.join(self.results_dir,'frame%d_depth.obj'%frame_ids))
         
         
-        # stage 1: optim global rot, transl, vposer
+        # optim global rot, transl, pose_aa
         
         self.m_smpl.global_orient.requires_grad = True
+        self.m_smpl.betas.requires_grad = False
+        self.m_smpl.model_scale_opt.requires_grad = False
         self.m_smpl.body_poseZ.requires_grad = False
         self.m_smpl.body_pose.requires_grad = True
         
         optimizer_1 = torch.optim.Adam([self.m_smpl.global_orient,
                                         self.m_smpl.transl,
                                         self.m_smpl.body_pose], lr=self.init_lr)
-                                        # self.m_smpl.body_pose], lr=self.init_lr)#self.m_smpl.body_poseZ
         iter_1 = max_iter
         pbar = trange(iter_1)       
         for iter in pbar:
@@ -764,18 +675,20 @@ class SMPLSolver():
 
             joint_loss, source_joints = self.color_term.calcColorLoss(keypoints=target_color_joints,
                                                        points=source_color_joints,
-                                                       img=color_img)
+                                                       img=color_img,
+                                                       foot_contact_l=foot_contact_l,
+                                                       foot_contact_r=foot_contact_r)
             joint_loss *= self.w_joint2d
-            if iter%10 == 0:
-                os.makedirs(f'{self.pose_debug_dir}/{frame_ids}', exist_ok=True)
-                trimesh.Trimesh(vertices=live_verts[0].detach().cpu().numpy(), faces=self.m_smpl.faces).\
-                    export(f'{self.pose_debug_dir}/{frame_ids}/iter_smpl_{iter}_stage_1.obj')
-                saveProjectedJoints(filename=f'{self.pose_debug_dir}/{frame_ids}/iter_smpl_{iter}_source_stage_1.png',
-                            img=color_img.copy(),
-                            joint_projected=source_joints)
-                saveProjectedJoints(filename=f'{self.pose_debug_dir}/{frame_ids}/iter_smpl_target_stage_1.png',
-                            img=color_img.copy(),
-                            joint_projected=target_color_joints)
+            # if iter%10 == 0:
+            #     os.makedirs(f'{self.pose_debug_dir}/{frame_ids}', exist_ok=True)
+            #     trimesh.Trimesh(vertices=live_verts[0].detach().cpu().numpy(), faces=self.m_smpl.faces).\
+            #         export(f'{self.pose_debug_dir}/{frame_ids}/iter_smpl_{iter}_stage_1.obj')
+            #     saveProjectedJoints(filename=f'{self.pose_debug_dir}/{frame_ids}/iter_smpl_{iter}_source_stage_1.png',
+            #                 img=color_img.copy(),
+            #                 joint_projected=source_joints)
+            #     saveProjectedJoints(filename=f'{self.pose_debug_dir}/{frame_ids}/iter_smpl_target_stage_1.png',
+            #                 img=color_img.copy(),
+            #                 joint_projected=target_color_joints)
         
         
             loss_geo_1 = joint_loss + depth_loss
@@ -865,13 +778,16 @@ class SMPLSolver():
         
         _verts = live_verts.detach().cpu().numpy()[0]
         output_mesh = trimesh.Trimesh(vertices=_verts,faces=self.m_smpl.faces,process=False)
-        output_mesh.export(osp.join(self.results_dir,'frame%04d_%04d.obj'%(frame_ids,iter)))
-        color_render, depth = self.color_term.renderMesh(output_mesh,color_img)
+        output_mesh.export(f'{self.label_output_dir}/mesh/{self.sub_ids}/{self.seq_name}/{frame_ids:03d}_{iter:04d}.obj')
+        self.logger.info(f'save mesh at {self.label_output_dir}/mesh/{self.sub_ids}/{self.seq_name}/{frame_ids:03d}_{iter:04d}.obj, tracking')
+
+
+        # color_render, depth = self.color_term.renderMesh(output_mesh,color_img)
         # projected_joints = self.color_term.projectJoints(joints)
         # projected_joints = projected_joints.detach().cpu().numpy()
-        saveProjectedJoints(filename=osp.join(self.results_dir,'frame%04d_%04d.png'%(frame_ids,iter)),
-                            img=color_render,
-                            joint_projected=keypoints[:,:2])
+        # saveProjectedJoints(filename=osp.join(self.results_dir,'frame%04d_%04d.png'%(frame_ids,iter)),
+        #                     img=color_render,
+        #                     joint_projected=keypoints[:,:2])
         
         # import pdb;pdb.set_trace()
         
@@ -886,25 +802,25 @@ class SMPLSolver():
         # body_pose = body_pose_rec0.detach().cpu()
         
         body_pose = self.m_smpl.body_pose.detach().cpu()
-        
         global_orient = self.m_smpl.global_orient.detach().cpu()
-        
         pose = torch.concat([global_orient, body_pose], dim=1)
-        
         output_pose = torch.zeros((pose.shape[0], 24, 3, 3), device=pose.device)
         for i in range(output_pose.shape[1]):
             output_pose[:, i] = torch.tensor(R.from_rotvec(pose.numpy()[:, i* 3: i* 3+ 3]).as_matrix(),
                                              device=pose.device)
 
         annot = {}
-        annot['body_poseZ'] = self.m_smpl.body_poseZ.detach().cpu()
-        annot['transl'] = self.m_smpl.transl.detach().cpu()
-        annot['betas'] = self.m_smpl.betas.detach().cpu()        
-        annot['body_pose'] = body_pose
-        annot['model_scale_opt'] = self.m_smpl.model_scale_opt.detach().cpu()  
-        annot['global_orient'] = self.m_smpl.global_orient.detach().cpu()  
-        torch.save(annot, f'{self.results_pose_dir}/{frame_ids}.pth')
+        # annot['body_poseZ'] = self.m_smpl.body_poseZ.detach().cpu()
+        annot['transl'] = self.m_smpl.transl.detach().cpu().numpy()
+        annot['betas'] = self.m_smpl.betas.detach().cpu().numpy()        
+        annot['body_pose'] = self.m_smpl.body_pose.detach().cpu().numpy()
+        annot['model_scale_opt'] = self.m_smpl.model_scale_opt.detach().cpu().numpy()
+        annot['global_orient'] = self.m_smpl.global_orient.detach().cpu().numpy() 
+        # torch.save(annot, f'{self.results_pose_dir}/{frame_ids}.pth')
         
+        np.savez_compressed(f'{self.label_output_dir}/smpl_pose/{self.sub_ids}/{self.seq_name}/{frame_ids:03d}_{iter:04d}.npz', annot)
+        self.logger.info(f'save pose at {self.label_output_dir}/smpl_pose/{self.sub_ids}/{self.seq_name}/{frame_ids:03d}_{iter:04d}.npz, tracking')
+
         
         return self.m_smpl.transl.detach().cpu(), output_pose,\
             self.m_smpl.betas.detach().cpu() 

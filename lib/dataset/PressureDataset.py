@@ -17,18 +17,20 @@ class PressureDataset(Dataset):
                  basdir,
                  dataset_name,
                  sub_ids,
-                 seq_name):
+                 seq_name,
+                 label_output_dir):
         super(PressureDataset, self).__init__()
         self.dtype = torch.float32
         self.basdir = basdir
         self.dataset_name = dataset_name
         self.sub_ids = sub_ids
         self.seq_name = seq_name
+        self.label_output_dir = label_output_dir
 
         self.rgbddir = osp.join(basdir, self.dataset_name, self.sub_ids, self.seq_name)
 
         #read floor
-        floor_path = osp.join(self.basdir, self.dataset_name, self.sub_ids, 'floor_'+self.sub_ids+'.npy')
+        floor_path = osp.join(self.label_output_dir, self.dataset_name, self.sub_ids, 'floor_'+self.sub_ids+'.npy')
         floor_info = np.load(floor_path, allow_pickle=True).item()
         self.floor_trans = floor_info['trans']
         self.floor_normal = floor_info['normal']
@@ -42,7 +44,7 @@ class PressureDataset(Dataset):
         pointCloud = pointCloud.reshape([-1,3])
         
         depth_floor = (self.depth2floor[:3, :3] @ pointCloud.T + self.depth2floor[:3, 3].reshape([3, 1])).T
-        trimesh.Trimesh(vertices=depth_floor, process=False).export(f'{self.visual_path}/depth_gt.obj')
+        # trimesh.Trimesh(vertices=depth_floor, process=False).export(f'{self.visual_path}/depth_gt.obj')
         # trimesh.Trimesh(vertices=depth_floor, process=False).export(f'{self.visual_path}/depth_pointcloud.obj')
         # import pdb;pdb.set_trace()
         if depth_normal is not None:
@@ -95,10 +97,13 @@ class PressureDataset(Dataset):
 
     def load_cliff(self, cliff_fn):
         cliff_data = dict(np.load(cliff_fn).items())
-        init_pose = cliff_data['pose']
+        if cliff_data['pose'].shape[0] > 1:
+            init_pose = np.expand_dims(cliff_data['pose'][0], 0) 
+        else:
+            init_pose = cliff_data['pose']    
         return init_pose
 
-    def getFrameData(self, ids, init_shape=True):
+    def getFrameData(self, ids, init_shape=True, tracking=True):
         """_summary_
 
         Args:
@@ -110,7 +115,8 @@ class PressureDataset(Dataset):
         """        
         # read rgbd
         depth_path = osp.join(self.rgbddir,'depth/%03d.png'%ids)
-        depth_map = imageio.imread(depth_path).astype(np.float32) / 1000.
+        # depth_map = imageio.imread(depth_path).astype(np.float32) / 1000.
+        depth_map = cv2.imread(depth_path, -1).astype(np.float32) / 1000.
         img_path = osp.join(self.rgbddir,'color/%03d.png'%ids)
         img = cv2.imread(img_path)
         mask_path = osp.join(self.rgbddir,'depth_mask/%03d.png'%ids)
@@ -132,9 +138,8 @@ class PressureDataset(Dataset):
         contact_data = None if init_shape else self.load_contact(contact_fn)
 
         # load cliff initial pose data
-        cliff_fn = osp.join(self.rgbddir, f'{self.seq_name}_cliff_hr48.npz')
-        init_pose = None if init_shape else self.load_cliff(cliff_fn)
-
+        cliff_fn = osp.join(self.label_output_dir, self.dataset_name, self.sub_ids, f'{self.seq_name}_cliff_hr48.npz')
+        init_pose = None if (init_shape or tracking) else self.load_cliff(cliff_fn)
         
         # load weight info
         # if init_shape:

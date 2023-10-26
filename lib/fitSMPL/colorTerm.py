@@ -76,27 +76,9 @@ class ColorTerm(nn.Module):
         optim_weights[17] = 0
         optim_weights[18] = 0
         
-    
-        optim_weights[19] = 0
-        optim_weights[20] = 0
-        optim_weights[21] = 0
-        
-        optim_weights[22] = 0       
-        optim_weights[23] = 0       
-        optim_weights[24] = 0       
-        # hand corre
-        # optim_weights[1] = 7
 
-        # optim_weights[4] = 10
-        # optim_weights[3] = 5
-        # optim_weights[7] = 10
-        # optim_weights[6] = 5
 
-        # optim_weights[8] = 5
-        
-        
-        
-        optim_weights = optim_weights / np.sum(optim_weights)
+        # optim_weights = optim_weights / np.sum(optim_weights)
 
         
         return torch.tensor(optim_weights, dtype=self.dtype,device=self.device)
@@ -139,7 +121,21 @@ class ColorTerm(nn.Module):
         return img_points
 
 
-    def calcColorLoss(self, keypoints=None,points=None,img=None):
+    def calcColorLoss(self, keypoints=None,points=None,img=None,
+                      foot_contact_l=True,
+                      foot_contact_r=True):
+
+        if foot_contact_l:
+            self.joint_weights[19] = 0
+            self.joint_weights[20] = 0
+            self.joint_weights[21] = 0
+        if foot_contact_r:
+            self.joint_weights[22] = 0       
+            self.joint_weights[23] = 0       
+            self.joint_weights[24] = 0              
+        
+        self.joint_weights = self.joint_weights/ torch.sum(self.joint_weights)
+
         projected_joints = self.projectJoints(points)
         # Calculate the weights for each joints
         keypoint_data = torch.tensor(keypoints, dtype=torch.float32,

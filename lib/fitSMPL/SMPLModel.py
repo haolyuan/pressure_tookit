@@ -147,9 +147,9 @@ class SMPLModel(nn.Module):
         betas[:,0] = 1
         self.register_parameter('betas',nn.Parameter(betas, requires_grad=False))
         body_pose = torch.zeros([1,self.NUM_JOINTS*3], dtype=dtype)
-        self.register_parameter('body_pose', nn.Parameter(body_pose, requires_grad=False))
+        self.register_parameter('body_pose', nn.Parameter(body_pose, requires_grad=True))
         body_poseZ = torch.zeros([1,32], dtype=dtype)
-        self.register_parameter('body_poseZ', nn.Parameter(body_poseZ, requires_grad=True))
+        self.register_parameter('body_poseZ', nn.Parameter(body_poseZ, requires_grad=False))
         transl = torch.zeros([1,3],dtype=dtype)
         self.register_parameter('transl', nn.Parameter(transl, requires_grad=True))
         global_orient = torch.zeros([1,3],dtype=dtype)
@@ -159,7 +159,7 @@ class SMPLModel(nn.Module):
 
         """ Extension of the official SMPL implementation to support more joints """
         # load extra 9 joints
-        J_regressor_extra = np.load('../../bodyModels/smpl/J_regressor_extra.npy')
+        J_regressor_extra = np.load(f'{model_path}/J_regressor_extra.npy')
         self.register_buffer('J_regressor_extra', torch.tensor(J_regressor_extra, dtype=torch.float32))
         
         # load joints mapping to remap smpl joints
@@ -263,7 +263,7 @@ class SMPLModel(nn.Module):
     def setPose(self, **params_dict):
         for param_name, param in self.named_parameters():
             if param_name in params_dict:
-                param[:] = torch.tensor(params_dict[param_name])
+                param[:] = params_dict[param_name].clone().detach()
 
     def initPlane(self):
         assert self.v_shaped != None, "must init smpl shape first"

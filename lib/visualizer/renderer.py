@@ -3,6 +3,9 @@ import trimesh
 import cv2
 import math
 import pyrender
+import os
+os.environ['PYOPENGL_PLATFORM']='egl'
+
 from pyrender.constants import RenderFlags
 from scipy.spatial.transform import Rotation as R
 from icecream import ic

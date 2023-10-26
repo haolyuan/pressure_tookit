@@ -20,12 +20,19 @@ from lib.Utils.fileio import saveNormalsAsOBJ
 def main(**args):
     device = torch.device('cuda') if torch.cuda.is_available() \
              else torch.device('cpu')
-
+             
+    basdir=args.get('basdir')
+    dataset_name=args.get('dataset')
+    seq_name=args.get('seq_name')
+    sub_ids=args.get('sub_ids')
+    label_output_dir=args.get('label_output_dir')
+    
     m_data = PressureDataset(
-        basdir=args.get('basdir'),
-        dataset_name=args.get('dataset'),
-        sub_ids=args.get('sub_ids'),
-        seq_name=args.get('seq_name'),
+        basdir=basdir,
+        dataset_name=dataset_name,
+        sub_ids=sub_ids,
+        seq_name=seq_name,
+        label_output_dir=label_output_dir
     )
 
     # from lib.fitSMPL.pressureTerm import PressureTerm
@@ -37,10 +44,6 @@ def main(**args):
     # exit()
 
     
-    basdir=args.get('basdir')
-    dataset_name=args.get('dataset')
-    seq_name=args.get('seq_name')
-    sub_ids=args.get('sub_ids')
     m_cam = RGBDCamera(
         basdir=basdir,
         dataset_name=dataset_name,
@@ -76,8 +79,8 @@ def main(**args):
                         keypoints=frame_data['kp'],
                         weight_data=frame_data['weight_data'],
                         max_iter=args.get('maxiters'))
-    import pdb;pdb.set_trace()
-    np.save(f'{basdir}/{dataset_name}/{sub_ids}/init_param_{sub_ids}', annot)
+    # import pdb;pdb.set_trace()
+    np.save(f'{label_output_dir}/{dataset_name}/{sub_ids}/init_param_{sub_ids}', annot)
 
 if __name__ == "__main__":
     args = parse_config()
