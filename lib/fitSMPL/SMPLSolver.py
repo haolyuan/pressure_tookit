@@ -99,9 +99,9 @@ class SMPLSolver():
         self.init_lr = 0.1
         self.num_train_epochs = 30
         
-        # set pre pose to improve local joints smooth
-        # add neck, head
+        # temp loss
         self.pre_pose = None
+        self.pre_contact_data = None
 
         self.openposemap = torch.tensor([0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24])
         self.halpemap = torch.tensor([0,18,6,8,10,5,7,9,19,12,14,16,11,13,15,2,1,4,3,20,22,24,21,23,25])
@@ -141,7 +141,7 @@ class SMPLSolver():
         # saveProjectedJoints(filename=f'{self.results_dir}/gt_visual/{frame_idx}.png',
         #                     img=color_img.copy(),
         #                     joint_projected=depth_color[:,:2])
-        
+        # exit()
         # import pdb;pdb.set_trace()
 
         #==========set smpl params====================
@@ -150,7 +150,7 @@ class SMPLSolver():
         betas = torch.tensor(betas,dtype=self.dtype, device=self.device)
         init_betas = betas.detach().clone()
         
-        model_scale_opt = torch.tensor([0.7], dtype=self.dtype, device=self.device)
+        model_scale_opt = torch.tensor([1.0], dtype=self.dtype, device=self.device)
         
         # transl = np.array([[-0.1, 0.97, -0.6]])
         # calculate coarse position to init
@@ -180,7 +180,7 @@ class SMPLSolver():
         
         # ```````````````` shape optimization``````````````````
         self.m_smpl.betas.requires_grad = True
-        self.m_smpl.model_scale_opt.requires_grad = True
+        # self.m_smpl.model_scale_opt.requires_grad = True
         # self.m_smpl.body_pose.requires_grad = True
         
         
@@ -188,7 +188,7 @@ class SMPLSolver():
         rough_optimizer_shape = torch.optim.Adam([self.m_smpl.global_orient,
                                                   self.m_smpl.transl,
                                                   self.m_smpl.body_pose,
-                                                  self.m_smpl.model_scale_opt,
+                                                #   self.m_smpl.model_scale_opt,
                                                   self.m_smpl.betas], lr=0.01)
         for iter in trange(max_iter):
             self.adjust_learning_rate(rough_optimizer_shape, iter)
@@ -378,8 +378,10 @@ class SMPLSolver():
             #     loss_geo = depth_loss + betas_reg_loss + penetrate_loss
             # penetrate_loss = torch.mean(torch.abs(live_verts[0, contact_ids, 1]))*self.w_penetrate #penetration
             
-            penetrate_loss = (torch.mean(torch.abs(live_plane[:, :live_plane.shape[1]//2, 1])) +\
-                torch.mean(torch.abs(live_plane[:, live_plane.shape[1]//2:, 1])))* self.w_penetrate
+            # TODO: improve the penetrate loss in initial frame, all foot should be on the plane currently
+            # penetrate_loss = (torch.mean(torch.abs(live_plane[:, :live_plane.shape[1]//2, 1])) +\
+            #     torch.mean(torch.abs(live_plane[:, live_plane.shape[1]//2:, 1])))* self.w_penetrate
+            penetrate_loss = torch.mean(torch.abs(live_verts[0, contact_ids, 1]))* self.w_penetrate * 2
 
             # body norm not correct
             # calculate norm direction in xoz
@@ -439,7 +441,7 @@ class SMPLSolver():
                                     joint_projected=target_color_joints[:, :2])      
         # trimesh.Trimesh(vertices=live_plane[0].detach().cpu().numpy()).export(f'{self.results_dir}/result_plane.obj')          
 
-        
+        import pdb;pdb.set_trace()
         live_verts, _, _, _ = self.m_smpl.updatePose(body_pose=self.m_smpl.body_pose)
         _verts = live_verts.detach().cpu().numpy()[0]
         trimesh.Trimesh(vertices=_verts, faces=self.m_smpl.faces, process=False).\
@@ -658,7 +660,12 @@ class SMPLSolver():
                                         self.m_smpl.transl,
                                         self.m_smpl.body_pose], lr=self.init_lr)
         iter_1 = max_iter
-        pbar = trange(iter_1)       
+        pbar = trange(iter_1)     
+
+        # set pose smooth
+        self.pre_pose = self.m_smpl.body_pose.clone().detach()
+
+  
         for iter in pbar:
             self.adjust_learning_rate(optimizer_1, iter)
             pbar.set_description("Frame[%03d]:" % frame_ids)
@@ -694,28 +701,32 @@ class SMPLSolver():
             loss_geo_1 = joint_loss + depth_loss
             
             # plane loss to fix foot
-            if iter == 0:
+            if self.pre_contact_data is not None:
+                if iter == 0:
+                    foot_temp_loss = torch.zeros(1, device=self.device, dtype=self.dtype)*self.w_temp_foot
+                    
+                    # trimesh.Trimesh(vertices=live_verts[0].detach().cpu().numpy(), faces=self.m_smpl.faces).\
+                    #     export(f'{self.results_dir}/iter_smpl_0.obj')
+                    # trimesh.Trimesh(vertices=live_plane[0].detach().cpu().numpy()).\
+                    #     export(f'{self.results_dir}/iter_plane_0.obj')
+                        
+                    self.contact_term.update_foot_plane(
+                        foot_plane=live_plane,
+                        contact_data=self.pre_contact_data,
+                        foot_plane_ids_smplL=[self.m_smpl.foot_ids_back_smplL, self.m_smpl.foot_ids_front_smplL],
+                        foot_plane_ids_smplR=[self.m_smpl.foot_ids_back_smplR, self.m_smpl.foot_ids_front_smplR])
+                else:
+
+                    foot_temp_loss = self.contact_term.calcTempLoss(
+                        live_plane=live_plane,
+                        contact_data=contact_data,
+                        foot_plane_ids_smplL=[self.m_smpl.foot_ids_back_smplL, self.m_smpl.foot_ids_front_smplL],
+                        foot_plane_ids_smplR=[self.m_smpl.foot_ids_back_smplR, self.m_smpl.foot_ids_front_smplR])* self.w_temp_foot
+                    
+                    loss_geo_1 += foot_temp_loss
+            else:
                 foot_temp_loss = torch.zeros(1, device=self.device, dtype=self.dtype)*self.w_temp_foot
                 
-                # trimesh.Trimesh(vertices=live_verts[0].detach().cpu().numpy(), faces=self.m_smpl.faces).\
-                #     export(f'{self.results_dir}/iter_smpl_0.obj')
-                # trimesh.Trimesh(vertices=live_plane[0].detach().cpu().numpy()).\
-                #     export(f'{self.results_dir}/iter_plane_0.obj')
-                    
-                self.contact_term.update_foot_plane(
-                    foot_plane=live_plane,
-                    contact_data=contact_data,
-                    foot_plane_ids_smplL=[self.m_smpl.foot_ids_back_smplL, self.m_smpl.foot_ids_front_smplL],
-                    foot_plane_ids_smplR=[self.m_smpl.foot_ids_back_smplR, self.m_smpl.foot_ids_front_smplR])
-            else:
-
-                foot_temp_loss = self.contact_term.calcTempLoss(
-                    live_plane=live_plane,
-                    contact_data=contact_data,
-                    foot_plane_ids_smplL=[self.m_smpl.foot_ids_back_smplL, self.m_smpl.foot_ids_front_smplL],
-                    foot_plane_ids_smplR=[self.m_smpl.foot_ids_back_smplR, self.m_smpl.foot_ids_front_smplR])* self.w_temp_foot
-                
-                loss_geo_1 += foot_temp_loss
             
             if contact_ids.shape[0]>0:
                 # penetration
@@ -757,7 +768,18 @@ class SMPLSolver():
             loss_geo_1 += torch.norm(self.m_smpl.body_pose[:, 14*3: 14*3+ 3]) +\
                 torch.norm(self.m_smpl.body_pose[:, 11*3: 11*3+ 3])
 
+            # elbow rot
+            loss_geo_1 += torch.norm(self.m_smpl.body_pose[:, 17*3+2: 17*3+3]) +\
+                torch.norm(self.m_smpl.body_pose[:, 18*3+2: 18*3+3]) +\
+                torch.relu( -1 * self.m_smpl.body_pose[:, 18*3+1].squeeze(0)) +\
+                torch.relu( 1 * self.m_smpl.body_pose[:, 17*3+1].squeeze(0))
 
+            # global r
+            # loss_geo_1 += torch.norm(self.pre_pose - self.m_smpl.body_pose) 
+            loss_geo_1 += torch.norm(self.pre_pose[:, 2*3:3*3] - self.m_smpl.body_pose[:, 2*3:3*3]) +\
+                torch.norm(self.pre_pose[:, 5*3:6*3] - self.m_smpl.body_pose[:, 5*3:6*3]) +\
+                torch.norm(self.pre_pose[:, 8*3:9*3] - self.m_smpl.body_pose[:, 8*3:9*3])
+                    
             optimizer_1.zero_grad()
             loss_geo_1.backward()
             optimizer_1.step()        
@@ -768,7 +790,7 @@ class SMPLSolver():
         #     export(f'{self.results_dir}/iter_plane_final.obj')
 
         self.press_term.setVertsPre(live_verts)# useless
-
+        self.pre_contact_data = contact_data
 
         # amass_body_pose_rec = self.vp.decode(self.m_smpl.body_poseZ)['pose_body'].contiguous().view(-1, 63)
         # body_pose_rec = torch.cat([amass_body_pose_rec, torch.zeros([1, 6], device=self.device)], dim=1)

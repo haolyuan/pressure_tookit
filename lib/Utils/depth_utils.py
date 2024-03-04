@@ -26,6 +26,7 @@ def depth2PointCloud(depth_map,fx,fy,cx,cy):
     x = (x - cx) / fx * z
     y = (y - cy) / fy * z
     pointCloud = np.dstack([x, y, z])
+    
     return pointCloud
 
 #============================Floor============================
@@ -78,19 +79,20 @@ def calculateFloorNormal(depth_path, xy,fx,fy,cx,cy, save_path=None):
 if __name__ == '__main__':
     
     sub_id = 'S01'
-    seq_name = 'MoCap_20230422_092117'
+    seq_name = 'PoseA'
+    dataset_name = '20230713'
     
-    os.makedirs(f'/data/yuanhaolei/PressureDataset_label/20230422/{sub_id}',exist_ok=True)
+    os.makedirs(f'/data/yuanhaolei/PressureDataset_label/{dataset_name}/{sub_id}',exist_ok=True)
 
-    cali_data = dict(np.load(f'/data/PressureDataset/20230422/{sub_id}/{seq_name}/calibration.npy',
+    cali_data = dict(np.load(f'/data/PressureDataset/{dataset_name}/{sub_id}/{seq_name}/calibration.npy',
                         allow_pickle=True).item())
     
     # height range, weight range
     floor_normal, floor_trans, depth2floor = calculateFloorNormal(
-        f'/data/PressureDataset/20230422/{sub_id}/{seq_name}/depth/003.png',
-        [509, 566, 237, 468],
+        f'/data/PressureDataset/{dataset_name}/{sub_id}/{seq_name}/depth/003.png',
+        [512, 565, 181, 486],
         fx=cali_data['depth_Intr']['fx'],
         fy=cali_data['depth_Intr']['fy'],
         cx=cali_data['depth_Intr']['cx'],
         cy=cali_data['depth_Intr']['cy'],
-        save_path=f'/data/yuanhaolei/PressureDataset_label/20230422/{sub_id}/floor_{sub_id}.npy')
+        save_path=f'/data/yuanhaolei/PressureDataset_label/{dataset_name}/{sub_id}/floor_{sub_id}.npy')

@@ -1,4 +1,4 @@
-import hydra
+# import hydra
 import torch
 import numpy as np
 import trimesh
@@ -9,16 +9,20 @@ import pickle as pkl
 from smplx import SMPL, SMPLX
 import yaml
 import cv2, imageio
+import subprocess
 import sys
-sys.path.append('D:/utils/pressure_toolkit')
+sys.path.append('/home/yuanhaolei/Document/code/pressure_toolkit')
 
 from lib.fitSMPL.SMPLModel import SMPLModel
-from lib.fitSMPL.SMPLModelRefine import smpl_model_refined
-from lib.fitSMPL.contactTerm import ContactTerm
 
-from lib.Utils.refineSMPL_utils import compute_normal_batch,\
-    body_pose_descompose, body_pose_compose, smpl_forward_official
-from lib.Utils.measurements import MeasurementsLoss
+
+# from lib.fitSMPL.SMPLModel import SMPLModel
+# from lib.fitSMPL.SMPLModelRefine import smpl_model_refined
+# from lib.fitSMPL.contactTerm import ContactTerm
+
+# from lib.Utils.refineSMPL_utils import compute_normal_batch,\
+#     body_pose_descompose, body_pose_compose, smpl_forward_official
+# from lib.Utils.measurements import MeasurementsLoss
     
 # @hydra.main(version_base=None, config_path="../configs", config_name="smpl_visualize")
 # def main(cfg):
@@ -174,15 +178,152 @@ def get_smpl_height():
     
     trimesh.Trimesh(vertices=t_smplx.vertices[0].detach().cpu().numpy(),
                     faces=smplx_model.faces).export('debug/smplx_template.obj')
-          
+
+def test_kp():
+    sub_ids_list = ['S03', 'S04']
+    for sub_ids in sub_ids_list:
+        sub_ids_dir = f'/data/PressureDataset/20230611/{sub_ids}'
+        for seq_name in os.listdir(sub_ids_dir):
+            seq_kp_dir = f'/data/PressureDataset/20230611/{sub_ids}/{seq_name}/insole'
+            if not os.path.exists(seq_kp_dir):
+                continue
+            for insole_npy in os.listdir(seq_kp_dir):
+                kp_name = insole_npy.split('.')[0]
+                kp_path = f'{sub_ids_dir}/{seq_name}/keypoints/{kp_name}.npy'
+                kp_data = np.load(kp_path, allow_pickle=True)
+                if kp_data.shape!=():
+                    try:
+                        kp_dict = dict(kp_data.item())
+                    except:
+                        print(kp_data)
+                        import pdb;pdb.set_trace()
+                        
+                    print(kp_path)
+                    # temp_data = kp_data[0]
+                    # os.makedirs(f'/home/yuanhaolei/temp_linux/{sub_ids}/{seq_name}/keypoints', exist_ok=True)
+                    # np.save(f'/home/yuanhaolei/temp_linux/{sub_ids}/{seq_name}/keypoints/{kp_name}', temp_data)
+                    
+                    
+                    # command = ['sudo', 'cp', f'/home/yuanhaolei/temp_linux/{sub_ids}/{seq_name}/keypoints/{kp_name}.npy',
+                    #            f'/data/PressureDataset/20230611/{sub_ids}/{seq_name}/keypoints/{kp_name}.npy']
+                    # proc = subprocess.Popen(command)
+                    # proc.wait()
+
+    # os.makedirs('/home/yuanhaolei/temp_linux/S03/S3-B-PAOBU-3/keypoints', exist_ok=True)
+    # np.save('/home/yuanhaolei/temp_linux/S03/S3-B-PAOBU-3/keypoints/418', save_data)
+
+def load_openpose_kp():
+    import json
+    kp_path = "/home/yuanhaolei/Document/code/prox-master/prox_dataset/quantitative/keypoints/vicon_03301_01/s001_frame_00001__00.00.00.023_keypoints.json"
+    with open(kp_path, 'rb')as f:
+        data = json.load(f)
+    import pdb;pdb.set_trace()
+
+
+def visSMPLFootModel(self,contact_label):
+    ## Ground truths
+    if contact_label.shape[0]!=6890:
+        contact = np.zeros(6890)
+        contact[self.footIdsL] = contact_label[0]
+        contact[self.footIdsR] = contact_label[1]
+    else:
+        contact = contact_label
+        hit_id = (contact == 1).nonzero()[0]
+
+    _mesh = trimesh.Trimesh(vertices=self.v_template, faces=self.faces, process=False)
+    _mesh.visual.vertex_colors = (191, 191, 191, 255)
+    _mesh.visual.vertex_colors[hit_id, :] = (0, 255, 0, 255)
+
+    return _mesh
+
+def A2_refine():
+    smpl_path = '/data/yuanhaolei/PressureDataset_label/smpl_pose/S01/A2/127_0100.npz'
+    smpl_data = np.load(smpl_path, allow_pickle=True)['arr_0'].item()
+    m_smpl = SMPLModel(
+        model_path='/home/yuanhaolei/Document/code/pressure_toolkit/essentials/bodyModels/smpl',
+        num_betas=10,
+        gender='female')
+    
+    init_param_path = '/data/yuanhaolei/PressureDataset_label/20230713/S01/init_param_S01.npy'
+    shape_data = dict(np.load(init_param_path, allow_pickle=True).item())
+
+    device = torch.device('cuda')
+    dtype=torch.float32
+    betas = torch.tensor(shape_data['betas'],dtype=dtype,device=device)
+    transl = torch.tensor(smpl_data['transl'],dtype=dtype,device=device)
+    body_pose = torch.tensor(smpl_data['body_pose'], dtype=dtype, device=device)
+    global_rot = torch.tensor(smpl_data['global_orient'], dtype=dtype, device=device)
+    model_scale_opt = torch.tensor(smpl_data['model_scale_opt'], dtype=dtype, device=device)
+    betas[0][1:] = 0
+    body_pose[0][3*3+2] = 0
+    body_pose[0][4*3+2] = 0.03
+    body_pose[0][1*3+2] = 0.02
+    body_pose[0][1*3] += 0.03
+    
+    body_pose[0][0] = 0.02
+    body_pose[0][3*3] = 0.05
+    
+    transl[0][1] += 0.032
+    
+    # body_pose_zero = torch.zeros_like(body_pose)
+    # global_rot_zero = torch.zeros_like(global_rot)
+    params_dict = {
+        'betas':betas,
+        'transl':transl,
+        'body_pose':body_pose,
+        'global_orient':global_rot,
+        'model_scale_opt':model_scale_opt
+    }
+    m_smpl.setPose(**params_dict)
+    m_smpl.updateShape()
+    
+    # update plane with init shape
+    m_smpl.initPlane()
+    live_verts, live_joints, _, live_plane = m_smpl.updatePose(body_pose=m_smpl.body_pose)
+    _verts = live_verts.detach().cpu().numpy()[0]
+    output_mesh = trimesh.Trimesh(vertices=_verts,faces=m_smpl.faces,process=False)
+    
+    ref_mesh= trimesh.load('/home/yuanhaolei/Document/code/pressure_toolkit/127.obj')
+    # # load contact label
+    # footIdsL, footIdsR =\
+    #     np.loadtxt('/home/yuanhaolei/Document/code/pressure_toolkit/essentials/footL_ids.txt'),\
+    #     np.loadtxt('/home/yuanhaolei/Document/code/pressure_toolkit/essentials/footR_ids.txt')
+    # contact_label = dict(np.load('/data/PressureDataset/20230713/S01/A2/insole/135.npy', allow_pickle=True).item())['insole']
+    
+    # if contact_label.shape[0]!=6890:
+    #     contact = np.zeros(6890)
+    #     contact[footIdsL] = contact_label[0]
+    #     contact[footIdsR] = contact_label[1]
+    # else:
+    #     contact = contact_label
+    #     hit_id = (contact == 1).nonzero()[0]
+        
+    output_mesh.visual.vertex_colors = (191, 191, 191, 255)
+    # output_mesh.visual.vertex_colors[hit_id, :] = (0, 255, 0, 255)
+    
+    # output_mesh.visual.vertex_colors = (191, 191, 191, 255)
+
+    for v_id in range(output_mesh.visual.vertex_colors.shape[0]):
+        if ref_mesh.visual.vertex_colors[v_id, :][1] == 255:
+            output_mesh.visual.vertex_colors[v_id, :] = (0, 255, 0, 255)
+    
+    output_mesh.export(f'/home/yuanhaolei/temp_linux/test_A2.obj')
+    
+    import pdb;pdb.set_trace()
+
 def main():
+    A2_refine()
+    # load_openpose_kp()
+    
     # cali_path = 'D:/dataset/PressureDataset/20230422/S01/MoCap_20230422_092117/calibration.npy'
     # cali_data = dict(np.load(cali_path, allow_pickle=True).item())
     
     # get_pic()
     # exit()
-        
-    get_smpl_height()
+    
+    # test_kp()
+    
+    # get_smpl_height()
     exit()
     import pdb;pdb.set_trace()
     

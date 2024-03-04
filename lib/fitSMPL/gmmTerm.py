@@ -10,6 +10,8 @@ except ImportError:
     from typing_extensions import Literal
 _dtype = TypeVar('_dtype')
 
+# Ref: xrmocap
+# https://github.com/openxrlab/xrmocap/blob/3a6b40397f9e3d36c87c11c6c8a3e435c7b0a094/xrmocap/model/loss/prior_loss.py#L326
 
 class MaxMixturePriorLoss(torch.nn.Module):
 

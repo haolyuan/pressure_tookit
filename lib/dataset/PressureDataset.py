@@ -45,8 +45,6 @@ class PressureDataset(Dataset):
         
         depth_floor = (self.depth2floor[:3, :3] @ pointCloud.T + self.depth2floor[:3, 3].reshape([3, 1])).T
         # trimesh.Trimesh(vertices=depth_floor, process=False).export(f'{self.visual_path}/depth_gt.obj')
-        # trimesh.Trimesh(vertices=depth_floor, process=False).export(f'{self.visual_path}/depth_pointcloud.obj')
-        # import pdb;pdb.set_trace()
         if depth_normal is not None:
             depth_normal = (self.depth2floor[:3, :3] @ depth_normal.T).T
         return depth_floor, depth_normal
@@ -75,9 +73,83 @@ class PressureDataset(Dataset):
         
         return target_keypoints
 
+    
+    def region2contact_label(self, insole_region):
+        # insole_region:[2, 31, 11]
+        region_l, region_r = insole_region[0], insole_region[1]
+        contact_label = [[0,0,0,0,0,0,0,0,0], [0,0,0,0,0,0,0,0,0]]
+        
+        row_range = [range(0, 8), range(8, 15), range(15, 23), range(23, 31)]
+        
+        # 左脚
+        for row in range(region_l.shape[0]):
+            for col in range(region_l.shape[1]):
+                if region_l[row][col] != 0:    
+                    # 0, 1
+                    if row in row_range[0]:
+                        if col in range(0, 7):
+                            contact_label[0][1] = 1
+                        if col in range(7, 11):
+                            contact_label[0][0] = 1
+                    # 2, 3, 4
+                    if row in row_range[1]:
+                        if col in range(0, 4):
+                            contact_label[0][4] = 1
+                        if col in range(4, 8):
+                            contact_label[0][3] = 1
+                        if col in range(8, 11):
+                            contact_label[0][2] = 1
+                    # 5, 6
+                    if row in row_range[2]:
+                        if col in range(0, 4):
+                            contact_label[0][6] = 1
+                        if col in range(4, 11):
+                            contact_label[0][5] = 1
+                    # 7, 8
+                    if row in row_range[3]:
+                        if col in range(0, 4):
+                            contact_label[0][8] = 1
+                        if col in range(4, 11):
+                            contact_label[0][7] = 1
+        # 右脚
+        for row in range(region_r.shape[0]):
+            for col in range(region_r.shape[1]):
+                if region_r[row][col] != 0:    
+                    # 0, 1
+                    if row in row_range[0]:
+                        if col in range(0, 4):
+                            contact_label[1][0] = 1
+                        if col in range(4, 11):
+                            contact_label[1][1] = 1
+                    # 2, 3, 4
+                    if row in row_range[1]:
+                        if col in range(0, 4):
+                            contact_label[1][2] = 1
+                        if col in range(4, 8):
+                            contact_label[1][3] = 1
+                        if col in range(8, 11):
+                            contact_label[1][4] = 1
+                    # 5, 6
+                    if row in row_range[2]:
+                        if col in range(0, 8):
+                            contact_label[1][5] = 1
+                        if col in range(8, 11):
+                            contact_label[1][6] = 1
+                    # 7, 8
+                    if row in row_range[3]:
+                        if col in range(0, 8):
+                            contact_label[1][7] = 1
+                        if col in range(8, 11):
+                            contact_label[1][8] = 1
+        return contact_label
+
+
     def load_contact(self, contact_fn):
         insole_data = dict(np.load(contact_fn, allow_pickle=True).item())
-        contact_data = insole_data['contact_label']
+        # 之前的版本，直接加载9个区域
+        # contact_data = insole_data['contact_label']
+        # 当前版本，需要根据insole的点位置推断区域
+        contact_data = self.region2contact_label(insole_data['insole'])
         return contact_data
     
     def show_insole(self,idx):
@@ -140,26 +212,6 @@ class PressureDataset(Dataset):
         # load cliff initial pose data
         cliff_fn = osp.join(self.label_output_dir, self.dataset_name, self.sub_ids, f'{self.seq_name}_cliff_hr48.npz')
         init_pose = None if (init_shape or tracking) else self.load_cliff(cliff_fn)
-        
-        # load weight info
-        # if init_shape:
-        #     insole_sync = np.load(osp.join('D:/dataset/tebu_contact','Sync-list-total.npy'), allow_pickle=True).item()
-            
-        #     ids_list = list(self.sub_ids)
-        #     ids_list.remove('0')
-            
-        #     temp_ids = ('').join(ids_list)
-        #     # A-pose has no insole data, we would get data from other seq from the same sub_ids data
-        #     insole_name = insole_sync[temp_ids]['MoCap_20230422_092324']
-        #     insole_path = osp.join('D:/dataset/tebu_contact', 'insole_pkl', insole_name + '.pkl')
-        #     with open(insole_path, "rb") as f:
-        #         insole_data = pickle.load(f)
-        #     indice_name = osp.join('D:/dataset/tebu_contact', 'Synced_indice', insole_name + '*')
-        #     synced_indice = np.loadtxt(glob.glob(indice_name)[0]).astype(np.int32)
-        #     insole_data = insole_data[synced_indice]
-        #     press_data = insole_data[0]
-        #     weight_data = np.sum(press_data[0] + press_data[1])
-        # else:
         
         weight_data = None
         output_dict = {'depth_map':depth_map,

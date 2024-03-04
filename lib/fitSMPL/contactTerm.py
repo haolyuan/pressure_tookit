@@ -2,8 +2,6 @@ import torch.nn as nn
 import numpy as np
 import torch
 
-# import sys
-# sys.path.append('D:/utils/pressure_toolkit')
 from lib.Utils.refineSMPL_utils import compute_normal_batch
 
 class ContactTerm(nn.Module):
@@ -158,9 +156,7 @@ class ContactTerm(nn.Module):
                 transl_loss_dict['front_r'] = 0
         else:
             transl_loss_dict['front_r'] = 0
-  
-        # print(transl_loss_dict['back_l'], transl_loss_dict['front_l'], transl_loss_dict['back_r'], transl_loss_dict['front_r'])
-        
+                    
         foot_temp_loss = transl_loss_dict['back_l'] + transl_loss_dict['front_l'] +\
                 transl_loss_dict['back_r'] + transl_loss_dict['front_r']    
         return foot_temp_loss
@@ -194,7 +190,6 @@ class ContactTerm(nn.Module):
             # get contact smpl idx from the default 9 foot region 
             contact_footr_ids = [self.foot_region9_r[i] for i in contact_region_r]
             contact_footr_ids = np.hstack(contact_footr_ids)
-            # import pdb; pdb.set_trace()
 
             plane_ids_back_r = [foot_ids_back_r.index(i) + len(foot_ids_back_l) + len(foot_ids_front_l)\
                 for i in foot_ids_back_r if i in contact_footr_ids]
@@ -233,8 +228,7 @@ class ContactTerm(nn.Module):
     def calcNormLoss(self, source_verts, verts_faces_list, target_n_list):
         
         n_y_nega = torch.tensor(np.array([0, -1, 0]), dtype=self.dtype, device=self.device)
-        
-        
+
         source_n_back_l = compute_normal_batch(vertices=source_verts[:, :30], faces=verts_faces_list[0].to(self.device)) 
         source_n_front_l = compute_normal_batch(vertices=source_verts[:, 30:30+42], faces=verts_faces_list[2].to(self.device))
         source_n_back_r = compute_normal_batch(vertices=source_verts[:, 30+42:30*2+42], faces=verts_faces_list[1].to(self.device))

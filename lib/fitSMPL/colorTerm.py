@@ -68,11 +68,9 @@ class ColorTerm(nn.Module):
         # put higher weights on knee and elbow joints for mimic'ed poses
         optim_weights[[3,6,10,13,4,7]] = 2
         
-        # add head joints weight, smpl head is smaller than RTMpose detacted
-        # we focus on height but not weight
+        
         # optim_weights[0] = 0
         # optim_weights[1] = 0
-        # optim_weights[17] = 0
         optim_weights[17] = 0
         optim_weights[18] = 0
         
@@ -125,14 +123,14 @@ class ColorTerm(nn.Module):
                       foot_contact_l=True,
                       foot_contact_r=True):
 
-        if foot_contact_l:
-            self.joint_weights[19] = 0
-            self.joint_weights[20] = 0
-            self.joint_weights[21] = 0
-        if foot_contact_r:
-            self.joint_weights[22] = 0       
-            self.joint_weights[23] = 0       
-            self.joint_weights[24] = 0              
+        # if foot_contact_l:
+        #     self.joint_weights[19] = 0
+        #     self.joint_weights[20] = 0
+        #     self.joint_weights[21] = 0
+        # if foot_contact_r:
+        #     self.joint_weights[22] = 0       
+        #     self.joint_weights[23] = 0       
+        #     self.joint_weights[24] = 0              
         
         self.joint_weights = self.joint_weights/ torch.sum(self.joint_weights)
 

@@ -99,7 +99,7 @@ def main(cfg):
     seq_name = cfg.task['seq_name']
     # init visualizer
     time_str = time.strftime("%m%d%H%M", time.localtime())
-    visualizer = Visualizer(cfg, time_str, fps=15)
+    visualizer = Visualizer(cfg, time_str, fps=30)
 
     # init smpl result
     init_smpl_data = torch.load(f'debug/{sub_ids}/{seq_name}/tracking_result_{seq_name}.pth')
