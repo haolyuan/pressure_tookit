@@ -1,10 +1,10 @@
 # Flags for data set and data dirs
-dataset: '20230713'
-basdir: '/data/PressureDataset'
+dataset: '20230611'
+basdir: '/data/nas_data/MMVP_dataset/'
 sub_ids: 'S01'
 label_output_dir: '/data/yuanhaolei/PressureDataset_label'
-seq_name: 'PoseA'
-output_dir: 'output'
+seq_name: 'S1-A-TIAOYUAN-1'
+output_dir: 'outputs'
 color_size:
   - 1280
   - 720
@@ -12,15 +12,17 @@ depth_size:
   - 640
   - 576
 
-frame_range:
-  - 0
-  - 167
+# frame_range:
+#   - 0
+#   - 167
 
 num_shape_comps: 10
-model_gender: 'female'
+model_gender: 'male'
 
-init_idx_start: 156
-init_idx_end: 1000
+fitting_stage: 'init_shape'
+
+start_idx: 251
+end_idx: 252
 shape_weights: 0.01
 depth_weights: 60.0
 keypoint_weights: 0.01

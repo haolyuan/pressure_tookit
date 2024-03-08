@@ -29,7 +29,7 @@ class PressureDataset(Dataset):
 
         self.rgbddir = osp.join(basdir, self.dataset_name, self.sub_ids, self.seq_name)
 
-        #read floor
+        # read floor
         floor_path = osp.join(self.label_output_dir, self.dataset_name, self.sub_ids, 'floor_'+self.sub_ids+'.npy')
         floor_info = np.load(floor_path, allow_pickle=True).item()
         self.floor_trans = floor_info['trans']

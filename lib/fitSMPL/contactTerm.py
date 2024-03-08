@@ -6,18 +6,19 @@ from lib.Utils.refineSMPL_utils import compute_normal_batch
 
 class ContactTerm(nn.Module):
     def __init__(self,
+                 essential_root=None,
                  dtype=torch.float32,
                  device='cpu') -> None:
         super(ContactTerm, self).__init__()
         self.dtype = dtype
         self.device = device
         
-        self.RegionInsole2SMPLL = np.load('essentials/pressure/RegionInsole2SMPLL_enhanced.npy', allow_pickle=True).item()
-        self.RegionInsole2SMPLR = np.load('essentials/pressure/RegionInsole2SMPLR_enhanced.npy', allow_pickle=True).item()
+        self.RegionInsole2SMPLL = np.load(f'{essential_root}/pressure/RegionInsole2SMPLL_enhanced.npy', allow_pickle=True).item()
+        self.RegionInsole2SMPLR = np.load(f'{essential_root}/pressure/RegionInsole2SMPLR_enhanced.npy', allow_pickle=True).item()
         
         self.foot_region9_l, self.foot_region9_r = self.foot_region_load()
         
-        # TODO: add aver norm direction
+        # TODO: add aver norm direction in future version
         
         # set pre plane position to fix foot
         self.pre_plane = None
