@@ -52,6 +52,10 @@ def parse_config(argv=None):
                         default='output',
                         type=str,
                         help='The folder where the output is stored')
+    parser.add_argument('--init_data_dir',
+                        default=None,
+                        type=str,
+                        help='init pose for fitting, used for stage init_pose/tracking')
     parser.add_argument('--color_size',
                         default=[1280,720], type=int,
                         nargs='*',
@@ -77,11 +81,7 @@ def parse_config(argv=None):
     parser.add_argument('--model_gender', default='neutral', type=str,
                         help='The gender of item.')
 
-    # fitting / losses   init_model
-    parser.add_argument('--init_model',
-                        default=False,
-                        action='store_true',
-                        help='init or tracking')
+    # fitting / losses
     parser.add_argument('--start_idx',
                         default=0,
                         help='which frame data will be used in init stage')

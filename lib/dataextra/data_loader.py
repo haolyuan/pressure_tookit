@@ -14,6 +14,7 @@ def create_dataset(
         seq_name=None,
         start_img_idx=0,
         end_img_idx=-1,
+        init_root=None,
         stage='init_shape', # init_pose, tracking
         ):
     
@@ -23,7 +24,8 @@ def create_dataset(
                 sub_ids,
                 seq_name, 
                 start_img_idx=start_img_idx,
-                end_img_idx=end_img_idx   ,
+                end_img_idx=end_img_idx,
+                init_root=init_root,
                 stage=stage
     )
 
@@ -120,14 +122,45 @@ def load_contact(contact_fn):
                         contact_label[1][8] = 1
         return contact_label
 
-def load_cliff(cliff_fn):
-    cliff_data = dict(np.load(cliff_fn).items())
-    if cliff_data['pose'].shape[0] > 1:
-        init_pose = np.expand_dims(cliff_data['pose'][0], 0) 
-    else:
-        init_pose = cliff_data['pose']    
-    return init_pose
+def load_init_pose(data_fn, form='cliff'):
+    """_summary_
 
+    Args:
+        data_fn (str): file path for loading init data
+        form (str, optional): date format for pose data. Defaults to 'cliff'.
+
+    Returns:
+        numpy.ndarray: load previous pose data or other network output pose data
+    """
+    # """_summary_
+
+    # Args:
+    #     data_fn (str): file path for loading init data
+
+    # Returns:
+    #     _type_: load previous pose data or other network output pose data
+    # """
+
+    
+    # TODO: now only load cliff format
+    if form == 'cliff':
+        init_data = dict(np.load(data_fn).items())
+        if init_data['pose'].shape[0] > 1:
+            init_pose = np.expand_dims(init_data['pose'][0], 0) 
+        else:
+            init_pose = init_data['pose']    
+        return init_pose[:, 3:]
+    elif form == 'tracking':
+        init_data = dict(np.load(data_fn).items())
+        init_pose = init_data['body_pose']    
+        return init_pose
+    else:
+        print('unsupported format when load init pose')
+        raise TypeError
+
+def load_init_shape(data_fn):
+    shape_param = dict(np.load(data_fn).items())
+    return shape_param['shape'], shape_param['model_scale_opt']
 
 class Pressure_Dataset(Dataset):
     def __init__(self,
@@ -137,6 +170,7 @@ class Pressure_Dataset(Dataset):
                  seq_name,
                  start_img_idx=0,
                  end_img_idx=-1,
+                 init_root=None,
                  dtype=torch.float32,
                  stage='init_shape', # init_pose, tracking
                  ):
@@ -148,6 +182,7 @@ class Pressure_Dataset(Dataset):
         self.dataset_name = dataset_name
         self.sub_ids = sub_ids
         self.seq_name = seq_name
+        self.init_root = init_root
         
         self.start_idx = int(start_img_idx)
         self.end_idx = int(end_img_idx)
@@ -171,10 +206,17 @@ class Pressure_Dataset(Dataset):
         self.kp_paths = [x for x in filter(lambda x: x.split('.')[-1] == 'npy', self.kp_paths)][self.start_idx:self.end_idx]
         # pressure data, A-pose has no pressure data
         self.pressure_paths = sorted(glob.glob(osp.join(self.rgbd_path, 'insole', '**'), recursive=True))
-        self.pressure_paths = [x for x in filter(lambda x: x.split('.')[-1] == 'npy', self.pressure_paths)][self.start_idx:self.end_idx]
-        
+        self.pressure_paths = [x for x in filter(lambda x: x.split('.')[-1] == 'npy', self.pressure_paths)]# commonly consistent to length of pressure data
+
+            
+        # init shape data
+        # TODO: set shape saved path
+        self.shape_path = None if stage == 'init_shape 'else \
+            osp.join(self.basdir, 'annotations', self.dataset_name, 'init_shape', f'init_shape_{self.sub_ids}.npz')
+
+
+        # joint mapper
         self.joint_mapper = self.init_joint_mapper()
-        # check 
         
     def get_joint_weights(self):
         # The weights for the joint terms in the optimization
@@ -238,12 +280,20 @@ class Pressure_Dataset(Dataset):
         else:
             contact_label = None
         
-        # load cliff initial pose data
-        if self.stage == 'init_pose':
-            cliff_path = osp.join(self.basdir, 'annotations', self.dataset_name, 'init_pose_cliff', f'{self.seq_name}_cliff_hr48.npz')
-            init_pose = load_cliff(cliff_path)
-        else:
+        # load initial pose data
+        # init pose data
+        # TODO: combine different format data
+        if self.stage == 'init_shape':
             init_pose = None
+            init_shape = None
+        if self.stage == 'init_pose': 
+            init_path = osp.join(self.init_root, self.dataset_name, self.sub_ids, self.seq_name, f'{self.seq_name}_cliff_hr48.npz')
+            init_pose = load_init_pose(init_path, form='cliff')
+            init_betas, init_scale = load_init_shape(self.shape_path)
+        if self.stage == 'tracking':
+            init_path = osp.join(self.init_root, self.dataset_name, self.sub_ids, self.seq_name, f'init_pose_{self.sub_ids}.npz')
+            init_pose = load_init_pose(init_path, form='tracking')
+            init_betas, init_scale = load_init_shape(self.shape_path)
             
         output_dict = {
                     'root_path':self.rgbd_path,
@@ -251,8 +301,10 @@ class Pressure_Dataset(Dataset):
                     'img': img,
                     'depth_mask': dmask,
                     'kp':frame_kp,
-                    'contact_label':contact_label,
-                    'init_pose':init_pose
+                    'contact_label': contact_label,
+                    'init_pose': init_pose,
+                    'init_betas': init_betas,
+                    'init_scale': init_scale
                     }
         
         

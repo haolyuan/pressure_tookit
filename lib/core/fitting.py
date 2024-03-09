@@ -101,7 +101,7 @@ class FittingMonitor(object):
                 break
 
             prev_loss = loss.item()
-            print(prev_loss, n)
+            # print(prev_loss, n)
 
         return prev_loss
 

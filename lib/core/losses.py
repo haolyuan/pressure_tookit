@@ -136,35 +136,31 @@ class SMPLifyMMVPLoss(nn.Module):
             total_loss += pose_prior_loss
         
         elif self.stage == 'init_pose':
-            pose_prior_loss = self.gmm_term(body_pose=live_pose) * self.w_gmm
+            pose_prior_loss = self.gmm_term(body_pose=live_pose) * self.gmm_weights
+            total_loss +=  pose_prior_loss
+            
             limbfixed_loss = torch.norm(live_pose[:, 19*3: 19*3+3]) +\
                 torch.norm(live_pose[:, 20*3: 20*3+3]) +\
                 torch.norm(live_pose[:, 21*3: 21*3+3]) +\
                 torch.norm(live_pose[:, 22*3: 22*3+3])         
-            limbfixed_loss *= self.w_fix_limbs
+            limbfixed_loss *= self.limb_weights
             
-            total_loss += limbfixed_loss + pose_prior_loss
 
             if contact_ids.shape[0] > 0:
-                penetrate_loss = torch.mean(torch.abs(live_vertices[0, contact_ids, 1]))* self.w_penetrate
+                penetrate_loss = torch.mean(torch.abs(live_vertices[0, contact_ids, 1]))* self.penetrate_weights
                 total_loss += penetrate_loss
         
         elif self.stage == 'tracking':
 
-            pose_prior_loss = self.gmm_term(body_pose=live_pose) * self.w_gmm
-            limbfixed_loss = torch.norm(live_pose[:, 19*3: 19*3+3]) +\
-                torch.norm(live_pose[:, 20*3: 20*3+3]) +\
-                torch.norm(live_pose[:, 21*3: 21*3+3]) +\
-                torch.norm(live_pose[:, 22*3: 22*3+3])              
-            limbfixed_loss *= self.w_fix_limbs
+            pose_prior_loss = self.gmm_term(body_pose=live_pose) * self.gmm_weights
 
-            total_loss += limbfixed_loss + pose_prior_loss
+            total_loss += pose_prior_loss
 
             if contact_ids.shape[0] > 0:
-                penetrate_loss = torch.mean(torch.abs(live_vertices[0, contact_ids, 1]))* self.w_penetrate
+                penetrate_loss = torch.mean(torch.abs(live_vertices[0, contact_ids, 1]))* self.penetrate_weights
                 total_loss += penetrate_loss
             
-            # TODO: add temp loss
+            # TODO: add temp loss 
 
         
         return total_loss

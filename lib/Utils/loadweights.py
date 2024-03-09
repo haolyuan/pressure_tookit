@@ -18,14 +18,14 @@
 """ use smplify-xmc framework"""
 
 defaultweights = {
-        'depth_weights':[60.0, 60.0],
-        'shape_weights':[0.01, 0.01],
-        'keypoint_weights':[0.01, 0.01],
-        'penetrate_weights':[15.0, 15.0],
-        'limb_weights':[0.0, 0.0],
-        'gmm_weights':[1.0, 1.0],
-        'tfoot_weights':[0.0, 0.0],
-        'tpose_weights':[0.0, 0.0]
+        'depth_weights':[60.0],
+        'shape_weights':[0.01],
+        'keypoint_weights':[0.01],
+        'penetrate_weights':[15.0],
+        'limb_weights':[0.0],
+        'gmm_weights':[1.0],
+        'tfoot_weights':[0.0],
+        'tpose_weights':[0.0]
 }
 
 def load_weights(stage):

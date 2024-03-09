@@ -3,7 +3,7 @@ dataset: '20230611'
 basdir: '/data/nas_data/MMVP_dataset/'
 sub_ids: 'S01'
 label_output_dir: '/data/yuanhaolei/PressureDataset_label'
-seq_name: 'S1-A-TIAOYUAN-1'
+seq_name: 'S1-A-TIAOSHENG-1'
 output_dir: 'outputs'
 color_size:
   - 1280
@@ -21,8 +21,8 @@ model_gender: 'male'
 
 fitting_stage: 'init_shape'
 
-start_idx: 251
-end_idx: 252
+start_idx: 336
+end_idx: 337
 shape_weights: 0.01
 depth_weights: 60.0
 keypoint_weights: 0.01

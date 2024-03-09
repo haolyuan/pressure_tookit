@@ -8,4 +8,6 @@
 
 
 # main_singleview
-python main_singleview.py -c configs/init_smpl_rgbd.yaml 
+# python main_singleview.py -c configs/init_smpl_rgbd.yaml 
+
+python main_singleview.py -c configs/fit_smpl_rgbd.yaml
