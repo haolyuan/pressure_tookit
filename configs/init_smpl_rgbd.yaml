@@ -1,10 +1,12 @@
 # Flags for data set and data dirs
-dataset: '20230611'
+dataset: '20230422'
 basdir: '/data/nas_data/MMVP_dataset/'
-sub_ids: 'S01'
+sub_ids: 'S10'
 label_output_dir: '/data/yuanhaolei/PressureDataset_label'
-seq_name: 'S1-A-TIAOSHENG-1'
-output_dir: 'outputs'
+seq_name: 'MoCap_20230422_171334'
+# output_dir: 'outputs'
+output_dir: '/data/yuanhaolei/PressureDataset_annotations/'
+
 color_size:
   - 1280
   - 720
@@ -21,8 +23,8 @@ model_gender: 'male'
 
 fitting_stage: 'init_shape'
 
-start_idx: 336
-end_idx: 337
+start_idx: 9
+end_idx: 10
 shape_weights: 0.01
 depth_weights: 60.0
 keypoint_weights: 0.01

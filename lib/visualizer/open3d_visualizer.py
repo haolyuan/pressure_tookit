@@ -10,8 +10,8 @@ from icecream import ic
 
 from tqdm import tqdm
 
-from lib.Utils.fileio import VideoWriter
-from lib.Utils.misc import progress_bar
+from lib.utils.fileio import VideoWriter
+from lib.utils.misc import progress_bar
 
 def estimate_focal_length(img_h, img_w):
     return (img_w * img_w + img_h * img_h) ** 0.5  # fov: 55 degree

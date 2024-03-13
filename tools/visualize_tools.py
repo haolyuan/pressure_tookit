@@ -12,7 +12,7 @@ sys.path.append('D:/utils/pressure_toolkit')
 from lib.visualizer.open3d_visualizer import Visualizer
 from lib.fitSMPL.SMPLModelRefine import smpl_model_refined
 from lib.fitSMPL.SMPLModel import SMPLModel
-from lib.Utils.refineSMPL_utils import compute_normal_batch,\
+from lib.utils.refineSMPL_utils import compute_normal_batch,\
     body_pose_descompose, body_pose_compose
     
 # @hydra.main(version_base=None, config_path="../configs", config_name="smpl_visualization")

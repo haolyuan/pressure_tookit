@@ -9,7 +9,7 @@ from icecream import ic
 sys.path.append('E:/projects/pressure_toolkit')
 from lib.dataset.PressureDataset import PressureDataset
 from color_utils import rgb_code
-from lib.Utils.fileio import read_json,save_json,saveImgSeqAsvideo
+from lib.utils.fileio import read_json,save_json,saveImgSeqAsvideo
 from lib.dataset.insole_sync import insole_sync
 
 def mapInsole2Smpl():
@@ -222,7 +222,7 @@ def footRegionMappingRight2Left():
     exit()
 
 def visFootRegionMapping():
-    from lib.Utils.vis_foot import visFootImage
+    from lib.utils.vis_foot import visFootImage
     m_vis = visFootImage()
     RegionInsole2SMPLR = np.load('debug/insole2smpl/RegionInsole2SMPLR.npy', allow_pickle=True).item()
     insoleRegionR,smplRegionR = RegionInsole2SMPLR['insole'],RegionInsole2SMPLR['smpl']

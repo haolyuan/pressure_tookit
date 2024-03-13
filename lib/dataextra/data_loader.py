@@ -141,6 +141,8 @@ def load_init_pose(data_fn, form='cliff'):
     #     _type_: load previous pose data or other network output pose data
     # """
 
+    init_global_rot = None
+    init_transl = None
     
     # TODO: now only load cliff format
     if form == 'cliff':
@@ -149,11 +151,13 @@ def load_init_pose(data_fn, form='cliff'):
             init_pose = np.expand_dims(init_data['pose'][0], 0) 
         else:
             init_pose = init_data['pose']    
-        return init_pose[:, 3:]
+        return init_pose[:, 3:], init_global_rot, init_transl
     elif form == 'tracking':
         init_data = dict(np.load(data_fn).items())
         init_pose = init_data['body_pose']    
-        return init_pose
+        init_global_rot = init_data['global_rot']
+        init_transl = init_data['transl']
+        return init_pose, init_global_rot, init_transl
     else:
         print('unsupported format when load init pose')
         raise TypeError
@@ -205,10 +209,12 @@ class Pressure_Dataset(Dataset):
         self.kp_paths = sorted(glob.glob(osp.join(self.rgbd_path, 'keypoints', '**'), recursive=True))
         self.kp_paths = [x for x in filter(lambda x: x.split('.')[-1] == 'npy', self.kp_paths)][self.start_idx:self.end_idx]
         # pressure data, A-pose has no pressure data
+        
         self.pressure_paths = sorted(glob.glob(osp.join(self.rgbd_path, 'insole', '**'), recursive=True))
-        self.pressure_paths = [x for x in filter(lambda x: x.split('.')[-1] == 'npy', self.pressure_paths)]# commonly consistent to length of pressure data
-
-            
+        self.pressure_paths = [x for x in filter(lambda x: x.split('.')[-1] == 'npy', self.pressure_paths)]
+        self.pressure_paths = [x for x in self.pressure_paths if \
+            int(x.rsplit('/', 1)[-1].split('.')[0]) >= self.start_idx and int(x.rsplit('/', 1)[-1].split('.')[0]) < self.end_idx]
+        
         # init shape data
         # TODO: set shape saved path
         self.shape_path = None if stage == 'init_shape 'else \
@@ -224,10 +230,10 @@ class Pressure_Dataset(Dataset):
         # These joints are ignored becaue SMPL has no neck.
         optim_weights[1] = 0        
         # put higher weights on knee and elbow joints for mimic'ed poses
-        optim_weights[[3,6,10,13,4,7]] = 2
+        optim_weights[[10,13]] = 2
+        optim_weights[[3,6,4,7]] = 20
 
-        optim_weights[17] = 0
-        optim_weights[18] = 0
+        optim_weights[[17, 18]] = 0
 
         return torch.tensor(optim_weights)
 
@@ -274,27 +280,41 @@ class Pressure_Dataset(Dataset):
         keypoints = read_rtm_kpts(kp_path)
         frame_kp = torch.from_numpy(keypoints).float()
         # insole pressure
-        if self.stage != 'init_shape':
+        if self.stage == 'tracking' :
             pressure_path = self.pressure_paths[idx]
             contact_label = load_contact(pressure_path)
-        else:
+        elif self.stage == 'init_shape':
             contact_label = None
+        else:
+            pressure_path = self.pressure_paths[idx]
+            contact_label = load_contact(pressure_path)
+            # optionally, control two foot contact to floor, but except running now
+            # contact_label = np.ones_like(np.array(contact_label)).tolist()
+            
+        # temp insole pressure
+        if self.stage == 'tracking':
+            pre_pressure_path = self.pressure_paths[idx - 1]
+            pre_contact_label = load_contact(pre_pressure_path)
+        else:
+            pre_contact_label = None    
+        
         
         # load initial pose data
         # init pose data
         # TODO: combine different format data
         if self.stage == 'init_shape':
-            init_pose = None
-            init_shape = None
+            init_pose, init_betas, init_scale, init_global_rot, init_transl = None, None, None, None, None
         if self.stage == 'init_pose': 
             init_path = osp.join(self.init_root, self.dataset_name, self.sub_ids, self.seq_name, f'{self.seq_name}_cliff_hr48.npz')
-            init_pose = load_init_pose(init_path, form='cliff')
+            init_pose, init_global_rot, init_transl = load_init_pose(init_path, form='cliff')
             init_betas, init_scale = load_init_shape(self.shape_path)
         if self.stage == 'tracking':
-            init_path = osp.join(self.init_root, self.dataset_name, self.sub_ids, self.seq_name, f'init_pose_{self.sub_ids}.npz')
-            init_pose = load_init_pose(init_path, form='tracking')
+            curr_idx = self.start_idx + idx - 1
+            init_path = osp.join(self.init_root.rsplit('/', 1)[0], 'results', self.dataset_name, self.sub_ids, self.seq_name, f'smpl_{curr_idx:03d}.npz')
+            # init_path = osp.join(self.init_root, self.dataset_name, self.sub_ids, self.seq_name, f'init_pose_{self.sub_ids}.npz')
+            init_pose, init_global_rot, init_transl = load_init_pose(init_path, form='tracking')
             init_betas, init_scale = load_init_shape(self.shape_path)
-            
+        
         output_dict = {
                     'root_path':self.rgbd_path,
                     'depth_map':depth_map,
@@ -302,9 +322,12 @@ class Pressure_Dataset(Dataset):
                     'depth_mask': dmask,
                     'kp':frame_kp,
                     'contact_label': contact_label,
+                    'pre_contact_label': pre_contact_label,
                     'init_pose': init_pose,
                     'init_betas': init_betas,
-                    'init_scale': init_scale
+                    'init_scale': init_scale,
+                    'init_global_rot':init_global_rot,
+                    'init_transl':init_transl
                     }
         
         

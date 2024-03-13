@@ -1,4 +1,0 @@
-- [ ] plane should change with betas
-- [ ] run solver based on rgbd and rgb data
-- [ ] add contact label to solver former 
-- [ ] better foor pose visualization

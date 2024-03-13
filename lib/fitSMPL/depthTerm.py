@@ -11,8 +11,8 @@ import torch.nn.functional as F
 from icecream import ic
 
 from lib.visualizer.renderer import modelRender
-from lib.Utils.depth_utils import depth2PointCloud
-from lib.Utils.fileio import saveCorrsAsOBJ
+from lib.utils.depth_utils import depth2PointCloud
+from lib.utils.fileio import saveCorrsAsOBJ
 
 
 class DepthTerm(nn.Module):

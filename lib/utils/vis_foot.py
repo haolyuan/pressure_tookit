@@ -1,7 +1,7 @@
 import cv2
 import trimesh
 import numpy as np
-from lib.Utils.color_utils import rgb_code
+from lib.utils.color_utils import rgb_code
 from icecream import ic
 
 class visFootImage():

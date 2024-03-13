@@ -1,8 +1,9 @@
 import torch.nn as nn
 import numpy as np
 import torch
+import trimesh
 
-from lib.Utils.refineSMPL_utils import compute_normal_batch
+from lib.utils.refineSMPL_utils import compute_normal_batch
 
 class ContactTerm(nn.Module):
     def __init__(self,
@@ -57,7 +58,8 @@ class ContactTerm(nn.Module):
             foot_plane (torch.tensor([bs, 30+42+30+42, 3])): foot plane
         """        
         self.pre_plane = foot_plane.detach()
-        
+        # trimesh.Trimesh(vertices=self.pre_plane.cpu().numpy()[0]).export('debug/pre_footplane.obj')
+        # import pdb;pdb.set_trace()
         pre_plane_ids = self.get_plane_idx(contact_data=contact_data,
                                        foot_plane_ids_smplL=foot_plane_ids_smplL,
                                        foot_plane_ids_smplR=foot_plane_ids_smplR)
@@ -65,6 +67,7 @@ class ContactTerm(nn.Module):
             self.pre_plane_ids_back_r, self.pre_plane_ids_front_r = \
                 pre_plane_ids[0], pre_plane_ids[1], pre_plane_ids[2], pre_plane_ids[3]
 
+        
     def calcPenetrateLoss(self, live_verts, contact_ids):
         """_summary_
 
@@ -95,7 +98,8 @@ class ContactTerm(nn.Module):
                 live_plane[:, 30:30+42, :].detach(), \
                 live_plane[:, 30+42:30+42+30, :].detach(), \
                 live_plane[:, 30+42+30:, :].detach()
-
+        trimesh.Trimesh(vertices=live_plane.detach().cpu().numpy()[0]).export('debug/curr_footplane.obj')
+        
         curr_plane_ids = self.get_plane_idx(contact_data=contact_data,
                                        foot_plane_ids_smplL=foot_plane_ids_smplL,
                                        foot_plane_ids_smplR=foot_plane_ids_smplR)
@@ -157,7 +161,6 @@ class ContactTerm(nn.Module):
                 transl_loss_dict['front_r'] = 0
         else:
             transl_loss_dict['front_r'] = 0
-                    
         foot_temp_loss = transl_loss_dict['back_l'] + transl_loss_dict['front_l'] +\
                 transl_loss_dict['back_r'] + transl_loss_dict['front_r']    
         return foot_temp_loss

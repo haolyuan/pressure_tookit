@@ -16,7 +16,10 @@ class SMPLifyMMVPLoss(nn.Module):
                  # depth related
                  dIntr=None,depth_size=None,
                  # color related
-                 cIntr=None, color_size=None,               
+                 cIntr=None, color_size=None,  
+                 # temp foot related
+                 temp_contact_label=None,  
+                 pre_pose=None,           
                  #  loss weight
                  depth_weight=10,keypoint_weights=0.01,
                  shape_weights=0.1,
@@ -29,6 +32,7 @@ class SMPLifyMMVPLoss(nn.Module):
                  dtype=torch.float32):
         super(SMPLifyMMVPLoss, self).__init__()
         
+        self.dtype = dtype
         # fitting stage
         assert stage in ['init_shape', 'init_pose', 'tracking']
         self.stage = stage
@@ -56,6 +60,11 @@ class SMPLifyMMVPLoss(nn.Module):
                                     dtype=dtype)        
         self.gmm_term = MaxMixturePriorLoss(prior_folder=f'{essential_root}/smplify_essential')
         self.contact_term = ContactTerm(essential_root=essential_root)
+        
+        # add temp loss      
+        self.iter_idx_0 = True # whether iteration first
+        self.pre_contact_data = temp_contact_label
+        self.pre_pose = pre_pose
 
         self.model_faces = model_faces
 
@@ -86,11 +95,14 @@ class SMPLifyMMVPLoss(nn.Module):
         live_plane = body_model_output.foot_plane
         live_pose = body_model_output.body_pose
         live_betas = body_model_output.betas
-        
+        # trimesh.Trimesh(vertices=live_plane.detach().cpu().numpy()[0]).export('debug/curr_footplane.obj')
+
+
+        device = live_joints.device
         
         # ==== joint loss / 2d keypoint loss ====
         openposemap_color_joints = live_joints[:, joint_mapper[0], :].squeeze(0)
-        halpemap_color_joints = gt_joints[joint_mapper[1], :].clone().detach().to(live_joints.device)
+        halpemap_color_joints = gt_joints[joint_mapper[1], :].clone().detach().to(device)
 
         
         
@@ -134,33 +146,108 @@ class SMPLifyMMVPLoss(nn.Module):
             # ==== gmm loss ====
             pose_prior_loss = self.gmm_term(body_pose=live_pose) * self.gmm_weights
             total_loss += pose_prior_loss
+            
+
         
         elif self.stage == 'init_pose':
+            # ==== gmm loss ====
             pose_prior_loss = self.gmm_term(body_pose=live_pose) * self.gmm_weights
             total_loss +=  pose_prior_loss
             
-            limbfixed_loss = torch.norm(live_pose[:, 19*3: 19*3+3]) +\
-                torch.norm(live_pose[:, 20*3: 20*3+3]) +\
-                torch.norm(live_pose[:, 21*3: 21*3+3]) +\
-                torch.norm(live_pose[:, 22*3: 22*3+3])         
-            limbfixed_loss *= self.limb_weights
-            
+            # limbfixed_loss = torch.norm(live_pose[:, 19*3: 19*3+3]) +\
+            #     torch.norm(live_pose[:, 20*3: 20*3+3]) +\
+            #     torch.norm(live_pose[:, 21*3: 21*3+3]) +\
+            #     torch.norm(live_pose[:, 22*3: 22*3+3])         
+            # limbfixed_loss *= self.limb_weights
+
+            # ==== temp pose loss ====
+            # temp loss for low conf 2d joints
+            gt_conf = gt_joints[:, 2]
+            if gt_conf[3] < 0.65: # RElbow, need fix RShoulder
+                total_loss += torch.norm(self.pre_pose[:, 16*3: 16*3+3] - live_pose[:, 16*3:16*3+3])
+            if gt_conf[4] < 0.65: # RWrist, need fix RElbow
+                total_loss += torch.norm(self.pre_pose[:, 18*3: 18*3+3] - live_pose[:, 18*3:18*3+3])
+            if gt_conf[6] < 0.65: # LElbow, need fix LShoulder
+                total_loss += torch.norm(self.pre_pose[:, 15*3: 15*3+3] - live_pose[:, 15*3: 15*3+3])    
+            if gt_conf[7] < 0.65: # LWrist, need fix LElbow
+                total_loss += torch.norm(self.pre_pose[:, 17*3: 17*3+3] - live_pose[:, 17*3: 17*3+3])  
+
+            # fix joints rot
+            total_loss += torch.norm(live_pose[:, 19*3:19*3+3]) +\
+                torch.norm(live_pose[:, 20*3:20*3+3]) +\
+                torch.norm(live_pose[:, 21*3:21*3+3]) +\
+                torch.norm(live_pose[:, 22*3:22*3+3]) +\
+                torch.norm(live_pose[:, 14*3: 14*3+ 3]) +\
+                torch.norm(live_pose[:, 11*3: 11*3+ 3]) +\
+                torch.norm(live_pose[:, 17*3+2: 17*3+3]) +\
+                torch.norm(live_pose[:, 18*3+2: 18*3+3]) +\
+                torch.relu( -1 * live_pose[:, 18*3+1].squeeze(0)) +\
+                torch.relu( 1 * live_pose[:, 17*3+1].squeeze(0))   
 
             if contact_ids.shape[0] > 0:
                 penetrate_loss = torch.mean(torch.abs(live_vertices[0, contact_ids, 1]))* self.penetrate_weights
                 total_loss += penetrate_loss
         
         elif self.stage == 'tracking':
-
+            # ==== gmm loss ====
             pose_prior_loss = self.gmm_term(body_pose=live_pose) * self.gmm_weights
 
             total_loss += pose_prior_loss
+
+            # ==== temp pose loss ====
+            # temp loss for low conf 2d joints
+            gt_conf = gt_joints[:, 2]
+            if gt_conf[3] < 0.65: # RElbow, need fix RShoulder
+                total_loss += torch.norm(self.pre_pose[:, 16*3: 16*3+3] - live_pose[:, 16*3:16*3+3])
+            if gt_conf[4] < 0.65: # RWrist, need fix RElbow
+                total_loss += torch.norm(self.pre_pose[:, 18*3: 18*3+3] - live_pose[:, 18*3:18*3+3])
+            if gt_conf[6] < 0.65: # LElbow, need fix LShoulder
+                total_loss += torch.norm(self.pre_pose[:, 15*3: 15*3+3] - live_pose[:, 15*3: 15*3+3])    
+            if gt_conf[7] < 0.65: # LWrist, need fix LElbow
+                total_loss += torch.norm(self.pre_pose[:, 17*3: 17*3+3] - live_pose[:, 17*3: 17*3+3])     
+   
+            
+            # fix joints rot
+            total_loss += torch.norm(live_pose[:, 19*3:19*3+3]) +\
+                torch.norm(live_pose[:, 20*3:20*3+3]) +\
+                torch.norm(live_pose[:, 21*3:21*3+3]) +\
+                torch.norm(live_pose[:, 22*3:22*3+3]) +\
+                torch.norm(live_pose[:, 14*3: 14*3+ 3]) +\
+                torch.norm(live_pose[:, 11*3: 11*3+ 3]) +\
+                torch.norm(live_pose[:, 17*3+2: 17*3+3]) +\
+                torch.norm(live_pose[:, 18*3+2: 18*3+3]) +\
+                torch.relu( -1 * live_pose[:, 18*3+1].squeeze(0)) +\
+                torch.relu( 1 * live_pose[:, 17*3+1].squeeze(0))   
+
 
             if contact_ids.shape[0] > 0:
                 penetrate_loss = torch.mean(torch.abs(live_vertices[0, contact_ids, 1]))* self.penetrate_weights
                 total_loss += penetrate_loss
             
-            # TODO: add temp loss 
-
+            if self.iter_idx_0:
+                self.contact_term.update_foot_plane(
+                    foot_plane=live_plane,
+                    contact_data=self.pre_contact_data,
+                    foot_plane_ids_smplL=[body_model_output.foot_ids[0], body_model_output.foot_ids[1]],
+                    foot_plane_ids_smplR=[body_model_output.foot_ids[2], body_model_output.foot_ids[3]])
+                # foot_temp_loss = self.contact_term.calcTempLoss(
+                #     live_plane=live_plane,
+                #     contact_data=gt_contact,
+                #     foot_plane_ids_smplL=[body_model_output.foot_ids[0], body_model_output.foot_ids[1]],
+                #     foot_plane_ids_smplR=[body_model_output.foot_ids[2], body_model_output.foot_ids[3]])* self.tfoot_weights    
+                # update iteration state
+                self.iter_idx_0 = False
+            else:
+                foot_temp_loss = self.contact_term.calcTempLoss(
+                    live_plane=live_plane,
+                    contact_data=gt_contact,
+                    foot_plane_ids_smplL=[body_model_output.foot_ids[0], body_model_output.foot_ids[1]],
+                    foot_plane_ids_smplR=[body_model_output.foot_ids[2], body_model_output.foot_ids[3]])* self.tfoot_weights                    
+                    
+                total_loss += foot_temp_loss    
+        # import pdb;pdb.set_trace()
+        # print(joint_loss, depth_loss, pose_prior_loss, penetrate_loss) 
         
+        # print(live_pose[:, 7*3:7*3+3], live_pose[:, 6*3:6*3+3])
+               
         return total_loss

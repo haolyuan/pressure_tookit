@@ -11,7 +11,7 @@ import torch.nn as nn
 from icecream import ic
 from smplx.lbs import transform_mat
 import trimesh, cv2
-from lib.Utils.depth_utils import depth2PointCloud#(depth_map,fx,fy,cx,cy)
+from lib.utils.depth_utils import depth2PointCloud#(depth_map,fx,fy,cx,cy)
 
 
 class RGBDCamera(nn.Module):

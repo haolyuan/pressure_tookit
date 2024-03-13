@@ -20,6 +20,7 @@ from lib.data.constants_spin import JOINT_NAMES, JOINT_MAP, FOOT_IDS_SMPLL, FOOT
 
 Tensor = NewType('Tensor', torch.Tensor)
 Array = NewType('Array', np.ndarray)
+List = NewType('List', list)
 
 
 @dataclass
@@ -28,6 +29,7 @@ class SMPLMMVPOuput(ModelOutput):
     body_pose: Optional[Tensor] = None
     foot_plane: Optional[Tensor] = None
     model_scale_opt : Optional[Tensor] = None
+    foot_ids: Optional[List] = None
     
 
 class SMPL_MMVP(nn.Module):
@@ -107,7 +109,7 @@ class SMPL_MMVP(nn.Module):
         self.vertex_joint_selector = VertexJointSelector(vertex_ids=vertex_ids)
         
         """ load foot data for dense contact control """
-        self.foot_ids_smplL, self.foot_ids_smplR = FOOT_IDS_SMPLL, FOOT_IDS_SMPLL
+        self.foot_ids_smplL, self.foot_ids_smplR = FOOT_IDS_SMPLL, FOOT_IDS_SMPLR
         # TODO: load faces data for norm calculation in future version
         
         # init smpl param
@@ -242,7 +244,11 @@ class SMPL_MMVP(nn.Module):
                              body_pose=self.body_pose,
                              foot_plane=v_plane,
                              betas=self.betas,
-                             model_scale_opt=self.model_scale_opt
+                             model_scale_opt=self.model_scale_opt,
+                             foot_ids=[self.foot_ids_back_smplL,
+                                       self.foot_ids_front_smplL,
+                                       self.foot_ids_back_smplR,
+                                       self.foot_ids_front_smplR]
                              )
 
 

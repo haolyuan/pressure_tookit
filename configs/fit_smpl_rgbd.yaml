@@ -1,11 +1,12 @@
 # Flags for data set and data dirs
-dataset: '20230611'
+dataset: '20230611' # 20230611
 basdir: '/data/nas_data/MMVP_dataset/'
-sub_ids: 'S01'
+sub_ids: 'S02' # S01
 label_output_dir: '/data/yuanhaolei/PressureDataset_label'
-init_data_dir: '/data/yuanhaolei/PressureDataset_annotations/temp/'
-seq_name: 'S1-A-SHIXINQIU-1'
+init_data_dir: '/data/yuanhaolei/PressureDataset_annotations/temp'
+seq_name: 'S2-A-TIAOYUAN-2' # S1-A-TIAOYUAN-1
 output_dir: '/data/yuanhaolei/PressureDataset_annotations/'
+# output_dir: 'outputs/'
 color_size:
   - 1280
   - 720
@@ -18,13 +19,13 @@ depth_size:
 num_shape_comps: 10
 model_gender: 'male'
 
-fitting_stage: 'init_pose'
+fitting_stage: 'init_pose' # init_shape, init_pose, tracking
 
-start_idx: 147
-end_idx: 149
-shape_weights: 0.01
-depth_weights: 60.0
-keypoint_weights: 0.01
-penetrate_weights: 15.0
-contact_weights: 0
+start_idx: 30
+end_idx: 187 # [)
+# shape_weights: 0.01
+# depth_weights: 60.0
+# keypoint_weights: 0.01
+# penetrate_weights: 15.0
+# contact_weights: 0
 maxiters: 101

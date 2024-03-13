@@ -23,9 +23,9 @@ defaultweights = {
         'keypoint_weights':[0.01],
         'penetrate_weights':[15.0],
         'limb_weights':[0.0],
-        'gmm_weights':[1.0],
-        'tfoot_weights':[0.0],
-        'tpose_weights':[0.0]
+        'gmm_weights':[0.01],
+        'tfoot_weights':[10.0],
+        'tpose_weights':[1.0]
 }
 
 def load_weights(stage):
@@ -64,6 +64,8 @@ def create_weights_dict(
     elif stage == 'init_pose':
         opt_weights_dict['limb_weights'] = limb_weights
         opt_weights_dict['gmm_weights'] = gmm_weights
+        opt_weights_dict['tpose_weights'] = tpose_weights
+        
     elif stage == 'tracking':
         opt_weights_dict['gmm_weights'] = gmm_weights
         opt_weights_dict['limb_weights'] = limb_weights
