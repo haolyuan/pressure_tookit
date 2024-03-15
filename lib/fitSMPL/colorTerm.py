@@ -7,7 +7,7 @@ import numpy as np
 from icecream import ic
 
 from lib.visualizer.renderer import modelRender
-# from lib.Utils.fileio import saveProjectedJoints
+# from lib.utils.fileio import saveProjectedJoints
 # saveProjectedJoints(filename='debug/2d+.png',img=img,joint_projected=projected_joints)
 
 

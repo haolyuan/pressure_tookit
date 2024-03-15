@@ -43,9 +43,11 @@ def read_rtm_kpts(keypoint_fn):
     #     data = np.load(keypoint_fn, allow_pickle=True)[0] # select first people to tracking
     # except:
     #     data = dict(np.load(keypoint_fn, allow_pickle=True).item())# only one people
-    
-    data = dict(np.load(keypoint_fn, allow_pickle=True).item())# only one people
-
+    try:
+        data = dict(np.load(keypoint_fn, allow_pickle=True).item())
+    except:
+        data = np.load(keypoint_fn, allow_pickle=True)[0]# only one people
+        
     points = np.array(data['keypoints'])
     points_score = np.array(data['keypoint_scores'])
     points_score = points_score[:, np.newaxis]
@@ -206,6 +208,7 @@ class Pressure_Dataset(Dataset):
         self.dmask_paths = sorted(glob.glob(osp.join(self.rgbd_path, 'depth_mask', '**'), recursive=True))# mask
         self.dmask_paths = [x for x in filter(lambda x: x.split('.')[-1] == 'png', self.dmask_paths)][self.start_idx:self.end_idx]
         # keypoints
+        # TODO: kp 与 pressure一致，而不与image数量一致
         self.kp_paths = sorted(glob.glob(osp.join(self.rgbd_path, 'keypoints', '**'), recursive=True))
         self.kp_paths = [x for x in filter(lambda x: x.split('.')[-1] == 'npy', self.kp_paths)][self.start_idx:self.end_idx]
         # pressure data, A-pose has no pressure data
@@ -220,7 +223,7 @@ class Pressure_Dataset(Dataset):
         self.shape_path = None if stage == 'init_shape 'else \
             osp.join(self.basdir, 'annotations', self.dataset_name, 'init_shape', f'init_shape_{self.sub_ids}.npz')
 
-
+        import pdb;pdb.set_trace()
         # joint mapper
         self.joint_mapper = self.init_joint_mapper()
         
@@ -246,7 +249,7 @@ class Pressure_Dataset(Dataset):
         return self        
 
     def __next__(self):
-        if self.cnt >= len(self.img_paths):
+        if self.cnt >= len(self.pressure_paths):
             raise StopIteration
 
         self.cnt += 1

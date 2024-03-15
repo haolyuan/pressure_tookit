@@ -3,7 +3,7 @@ import numpy as np
 import torch
 import trimesh
 
-from lib.utils.refineSMPL_utils import compute_normal_batch
+# from lib.utils.refineSMPL_utils import compute_normal_batch
 
 class ContactTerm(nn.Module):
     def __init__(self,

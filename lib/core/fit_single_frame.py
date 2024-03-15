@@ -79,7 +79,7 @@ def fit_single_frame(img,
     body_model.update_shape()
     body_model.init_plane()
 
-    # pre_model_output = body_model.update_pose()
+    pre_model_output = body_model.update_pose()
     # trimesh.Trimesh(vertices=pre_model_output.foot_plane.detach().cpu().numpy()[0]).export('debug/pre_footplane.obj')
                 
     # vertices = pre_model_output.vertices.detach().cpu().numpy().squeeze(0)
@@ -197,37 +197,36 @@ def fit_single_frame(img,
     else:
         np.savez(output_temp_fn, body_pose=output_pose)
         # save temp pose file for tracking
-        
-    # render
-    color_vertices = camera.tranform3d(model_output.vertices, type='f2c')
-    mesh = trimesh.Trimesh(vertices=color_vertices.detach().cpu().numpy(),
-                           faces=body_model.faces
-                            )
-    # mesh.export('debug/new_framework/mesh_.obj')
-    loss.color_term.renderMesh(mesh=mesh, img=img)
-    # save joints data
-    live_joints = model_output.joints
-    img_src, img_tar = copy.deepcopy(img), copy.deepcopy(img)
-    halpemap_color_joints = keypoints[joint_mapper[1], :].clone().detach().cpu().numpy()
-    openposemap_color_joints = live_joints[:, joint_mapper[0], :].squeeze(0)
-    projected_joints = camera.projectJoints(openposemap_color_joints)
-    for i in range(projected_joints.shape[0]):
-        x = projected_joints[i, 0]
-        y = projected_joints[i, 1]
-        img_src = cv2.putText(img_src, f"{i}", (int(x), int(y)),
-                          cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255))
+    # # render
+    # color_vertices = camera.tranform3d(model_output.vertices, type='f2c')
+    # mesh = trimesh.Trimesh(vertices=color_vertices.detach().cpu().numpy(),
+    #                        faces=body_model.faces
+    #                         )
+    # # mesh.export('debug/new_framework/mesh_.obj')
+    # loss.color_term.renderMesh(mesh=mesh, img=img)
+    # # save joints data
+    # live_joints = model_output.joints
+    # img_src, img_tar = copy.deepcopy(img), copy.deepcopy(img)
+    # halpemap_color_joints = keypoints[joint_mapper[1], :].clone().detach().cpu().numpy()
+    # openposemap_color_joints = live_joints[:, joint_mapper[0], :].squeeze(0)
+    # projected_joints = camera.projectJoints(openposemap_color_joints)
+    # for i in range(projected_joints.shape[0]):
+    #     x = projected_joints[i, 0]
+    #     y = projected_joints[i, 1]
+    #     img_src = cv2.putText(img_src, f"{i}", (int(x), int(y)),
+    #                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255))
 
-        img_src = cv2.circle(img_src, (int(x), int(y)), 1, (0, 0, 255), 0)    
+    #     img_src = cv2.circle(img_src, (int(x), int(y)), 1, (0, 0, 255), 0)    
 
-        x = halpemap_color_joints[i, 0]
-        y = halpemap_color_joints[i, 1]
-        img_tar = cv2.putText(img_tar, f"{i}", (int(x), int(y)),
-                          cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255))
+    #     x = halpemap_color_joints[i, 0]
+    #     y = halpemap_color_joints[i, 1]
+    #     img_tar = cv2.putText(img_tar, f"{i}", (int(x), int(y)),
+    #                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255))
 
-        img_tar = cv2.circle(img_tar, (int(x), int(y)), 1, (0, 0, 255), 0)   
+    #     img_tar = cv2.circle(img_tar, (int(x), int(y)), 1, (0, 0, 255), 0)   
 
-    cv2.imwrite('debug/new_framework/kp_src.png', img_src)
-    cv2.imwrite('debug/new_framework/kp_tar.png', img_tar)
+    # cv2.imwrite('debug/new_framework/kp_src.png', img_src)
+    # cv2.imwrite('debug/new_framework/kp_tar.png', img_tar)
     # import pdb;pdb.set_trace()
     # print(contact_label)
 

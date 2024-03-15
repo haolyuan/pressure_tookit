@@ -6,7 +6,7 @@ import os.path as osp
 import numpy as np
 
 from xrprimer.utils.path_utils import check_path_existence, Existence
-from lib.Utils.depth_utils import depth2PointCloud#(depth_map,fx,fy,cx,cy)
+from lib.utils.depth_utils import depth2PointCloud#(depth_map,fx,fy,cx,cy)
 
 def create_camera(basdir,
                  dataset_name,
