@@ -1,67 +1,67 @@
-
-
 # Mean and standard deviation for normalizing input image
 IMG_NORM_MEAN = [0.485, 0.456, 0.406]
 IMG_NORM_STD = [0.229, 0.224, 0.225]
-
 """
-We create a superset of joints containing the OpenPose joints together with the ones that each dataset provides.
-We keep a superset of 24 joints such that we include all joints from every dataset.
-If a dataset doesn't provide annotations for a specific joint, we simply ignore it.
+We create a superset of joints containing the OpenPose joints
+together with the ones that each dataset provides.
+We keep a superset of 24 joints such that
+we include all joints from every dataset.
+If a dataset doesn't provide annotations
+for a specific joint, we simply ignore it.
 The joints used here are the following:
 """
 JOINT_NAMES = [
-# 25 OpenPose joints (in the order provided by OpenPose)
-'OP Nose',
-'OP Neck',
-'OP RShoulder',
-'OP RElbow',
-'OP RWrist',
-'OP LShoulder',
-'OP LElbow',
-'OP LWrist',
-'OP MidHip',
-'OP RHip',
-'OP RKnee',
-'OP RAnkle',
-'OP LHip',
-'OP LKnee',
-'OP LAnkle',
-'OP REye',
-'OP LEye',
-'OP REar',
-'OP LEar',
-'OP LBigToe',
-'OP LSmallToe',
-'OP LHeel',
-'OP RBigToe',
-'OP RSmallToe',
-'OP RHeel',
-# 24 Ground Truth joints (superset of joints from different datasets)
-'Right Ankle',
-'Right Knee',
-'Right Hip',
-'Left Hip',
-'Left Knee',
-'Left Ankle',
-'Right Wrist',
-'Right Elbow',
-'Right Shoulder',
-'Left Shoulder',
-'Left Elbow',
-'Left Wrist',
-'Neck (LSP)',
-'Top of Head (LSP)',
-'Pelvis (MPII)',
-'Thorax (MPII)',
-'Spine (H36M)',
-'Jaw (H36M)',
-'Head (H36M)',
-'Nose',
-'Left Eye',
-'Right Eye',
-'Left Ear',
-'Right Ear'
+    # 25 OpenPose joints (in the order provided by OpenPose)
+    'OP Nose',
+    'OP Neck',
+    'OP RShoulder',
+    'OP RElbow',
+    'OP RWrist',
+    'OP LShoulder',
+    'OP LElbow',
+    'OP LWrist',
+    'OP MidHip',
+    'OP RHip',
+    'OP RKnee',
+    'OP RAnkle',
+    'OP LHip',
+    'OP LKnee',
+    'OP LAnkle',
+    'OP REye',
+    'OP LEye',
+    'OP REar',
+    'OP LEar',
+    'OP LBigToe',
+    'OP LSmallToe',
+    'OP LHeel',
+    'OP RBigToe',
+    'OP RSmallToe',
+    'OP RHeel',
+    # 24 Ground Truth joints (superset of joints from different datasets)
+    'Right Ankle',
+    'Right Knee',
+    'Right Hip',
+    'Left Hip',
+    'Left Knee',
+    'Left Ankle',
+    'Right Wrist',
+    'Right Elbow',
+    'Right Shoulder',
+    'Left Shoulder',
+    'Left Elbow',
+    'Left Wrist',
+    'Neck (LSP)',
+    'Top of Head (LSP)',
+    'Pelvis (MPII)',
+    'Thorax (MPII)',
+    'Spine (H36M)',
+    'Jaw (H36M)',
+    'Head (H36M)',
+    'Nose',
+    'Left Eye',
+    'Right Eye',
+    'Left Ear',
+    'Right Ear'
 ]
 
 # Dict containing the joints in numerical order
@@ -69,23 +69,55 @@ JOINT_IDS = {JOINT_NAMES[i]: i for i in range(len(JOINT_NAMES))}
 
 # Map joints to SMPL joints
 JOINT_MAP = {
-'OP Nose': 24, 'OP Neck': 12, 'OP RShoulder': 17,
-'OP RElbow': 19, 'OP RWrist': 21, 'OP LShoulder': 16,
-'OP LElbow': 18, 'OP LWrist': 20, 'OP MidHip': 0,
-'OP RHip': 2, 'OP RKnee': 5, 'OP RAnkle': 8,
-'OP LHip': 1, 'OP LKnee': 4, 'OP LAnkle': 7,
-'OP REye': 25, 'OP LEye': 26, 'OP REar': 27,
-'OP LEar': 28, 'OP LBigToe': 29, 'OP LSmallToe': 30,
-'OP LHeel': 31, 'OP RBigToe': 32, 'OP RSmallToe': 33, 'OP RHeel': 34,
-'Right Ankle': 8, 'Right Knee': 5, 'Right Hip': 45,
-'Left Hip': 46, 'Left Knee': 4, 'Left Ankle': 7,
-'Right Wrist': 21, 'Right Elbow': 19, 'Right Shoulder': 17,
-'Left Shoulder': 16, 'Left Elbow': 18, 'Left Wrist': 20,
-'Neck (LSP)': 47, 'Top of Head (LSP)': 48,
-'Pelvis (MPII)': 49, 'Thorax (MPII)': 50,
-'Spine (H36M)': 51, 'Jaw (H36M)': 52,
-'Head (H36M)': 53, 'Nose': 24, 'Left Eye': 26,
-'Right Eye': 25, 'Left Ear': 28, 'Right Ear': 27
+    'OP Nose': 24,
+    'OP Neck': 12,
+    'OP RShoulder': 17,
+    'OP RElbow': 19,
+    'OP RWrist': 21,
+    'OP LShoulder': 16,
+    'OP LElbow': 18,
+    'OP LWrist': 20,
+    'OP MidHip': 0,
+    'OP RHip': 2,
+    'OP RKnee': 5,
+    'OP RAnkle': 8,
+    'OP LHip': 1,
+    'OP LKnee': 4,
+    'OP LAnkle': 7,
+    'OP REye': 25,
+    'OP LEye': 26,
+    'OP REar': 27,
+    'OP LEar': 28,
+    'OP LBigToe': 29,
+    'OP LSmallToe': 30,
+    'OP LHeel': 31,
+    'OP RBigToe': 32,
+    'OP RSmallToe': 33,
+    'OP RHeel': 34,
+    'Right Ankle': 8,
+    'Right Knee': 5,
+    'Right Hip': 45,
+    'Left Hip': 46,
+    'Left Knee': 4,
+    'Left Ankle': 7,
+    'Right Wrist': 21,
+    'Right Elbow': 19,
+    'Right Shoulder': 17,
+    'Left Shoulder': 16,
+    'Left Elbow': 18,
+    'Left Wrist': 20,
+    'Neck (LSP)': 47,
+    'Top of Head (LSP)': 48,
+    'Pelvis (MPII)': 49,
+    'Thorax (MPII)': 50,
+    'Spine (H36M)': 51,
+    'Jaw (H36M)': 52,
+    'Head (H36M)': 53,
+    'Nose': 24,
+    'Left Eye': 26,
+    'Right Eye': 25,
+    'Left Ear': 28,
+    'Right Ear': 27
 }
 
 # Joint selectors
@@ -97,34 +129,42 @@ J24_TO_J17 = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 18, 14, 16, 17]
 J24_TO_J14 = J24_TO_J17[:14]
 
 # Permutation of SMPL pose parameters when flipping the shape
-SMPL_JOINTS_FLIP_PERM = [0, 2, 1, 3, 5, 4, 6, 8, 7, 9, 11, 10, 12, 14, 13, 15, 17, 16, 19, 18, 21, 20, 23, 22]
+SMPL_JOINTS_FLIP_PERM = [
+    0, 2, 1, 3, 5, 4, 6, 8, 7, 9, 11, 10, 12, 14, 13, 15, 17, 16, 19, 18, 21,
+    20, 23, 22
+]
 SMPL_POSE_FLIP_PERM = []
 for i in SMPL_JOINTS_FLIP_PERM:
-    SMPL_POSE_FLIP_PERM.append(3*i)
-    SMPL_POSE_FLIP_PERM.append(3*i+1)
-    SMPL_POSE_FLIP_PERM.append(3*i+2)
+    SMPL_POSE_FLIP_PERM.append(3 * i)
+    SMPL_POSE_FLIP_PERM.append(3 * i + 1)
+    SMPL_POSE_FLIP_PERM.append(3 * i + 2)
 # Permutation indices for the 24 ground truth joints
-J24_FLIP_PERM = [5, 4, 3, 2, 1, 0, 11, 10, 9, 8, 7, 6, 12, 13, 14, 15, 16, 17, 18, 19, 21, 20, 23, 22]
+J24_FLIP_PERM = [
+    5, 4, 3, 2, 1, 0, 11, 10, 9, 8, 7, 6, 12, 13, 14, 15, 16, 17, 18, 19, 21,
+    20, 23, 22
+]
 # Permutation indices for the full set of 49 joints
-J49_FLIP_PERM = [0, 1, 5, 6, 7, 2, 3, 4, 8, 12, 13, 14, 9, 10, 11, 16, 15, 18, 17, 22, 23, 24, 19, 20, 21]\
+J49_FLIP_PERM = [0, 1, 5, 6, 7, 2, 3, 4, 8, 12,
+                 13, 14, 9, 10, 11, 16, 15, 18, 17, 22, 23, 24, 19, 20, 21]\
               + [25+i for i in J24_FLIP_PERM]
-
-
-
 """ ==== Extension for foot data ==== """
-FOOT_IDS_SMPLL= [3237, 3239, 3238, 3240, 3293, 3295, 3297, 3221, 3220, 3254, 3251, 3253,
-                3250, 3296, 3300, 3261, 3263, 3264, 3262, 3306, 3305, 3228, 3229, 3276,
-                3278, 3275, 3277, 3307, 3310, 3315, 3287, 3289, 3288, 3290, 3224, 3225,
-                3352, 3353, 3406, 3437, 3355, 3354, 3358, 3359, 3438, 3439, 3361, 3360,
-                3362, 3357, 3363, 3356, 3440, 3419, 3407, 3444, 3443, 3408, 3448, 3447,
-                3430, 3449, 3450, 3442, 3441, 3420, 3446, 3445, 3421, 3451, 3452, 3422,
-                3431, 3456, 3455, 3429, 3462, 3464, 3428, 3461, 3463, 3467, 3460, 3427,
-                3454, 3453, 3423, 3465, 3457, 3424, 3466, 3459, 3425, 3468, 3458, 3426]
-FOOT_IDS_SMPLR = [6637, 6640, 6636, 6639, 6693, 6695, 6697, 6621, 6622, 6654, 6651, 6653, 
-                6652, 6696, 6701, 6661, 6663, 6664, 6660, 6706, 6705, 6630, 6629, 6674, 
-                6677, 6675, 6678, 6707, 6711, 6716, 6687, 6690, 6686, 6689, 6626, 6625, 
-                6752, 6753, 6806, 6837, 6755, 6754, 6758, 6759, 6838, 6839, 6761, 6760, 
-                6762, 6757, 6763, 6756, 6840, 6819, 6807, 6844, 6843, 6808, 6848, 6847, 
-                6830, 6849, 6850, 6842, 6841, 6820, 6846, 6845, 6821, 6851, 6852, 6822, 
-                6831, 6856, 6855, 6829, 6862, 6863, 6828, 6861, 6864, 6867, 6860, 6827, 
-                6854, 6853, 6823, 6865, 6857, 6824, 6866, 6859, 6826, 6868, 6858, 6825]
+FOOT_IDS_SMPLL = [
+    3237, 3239, 3238, 3240, 3293, 3295, 3297, 3221, 3220, 3254, 3251, 3253,
+    3250, 3296, 3300, 3261, 3263, 3264, 3262, 3306, 3305, 3228, 3229, 3276,
+    3278, 3275, 3277, 3307, 3310, 3315, 3287, 3289, 3288, 3290, 3224, 3225,
+    3352, 3353, 3406, 3437, 3355, 3354, 3358, 3359, 3438, 3439, 3361, 3360,
+    3362, 3357, 3363, 3356, 3440, 3419, 3407, 3444, 3443, 3408, 3448, 3447,
+    3430, 3449, 3450, 3442, 3441, 3420, 3446, 3445, 3421, 3451, 3452, 3422,
+    3431, 3456, 3455, 3429, 3462, 3464, 3428, 3461, 3463, 3467, 3460, 3427,
+    3454, 3453, 3423, 3465, 3457, 3424, 3466, 3459, 3425, 3468, 3458, 3426
+]
+FOOT_IDS_SMPLR = [
+    6637, 6640, 6636, 6639, 6693, 6695, 6697, 6621, 6622, 6654, 6651, 6653,
+    6652, 6696, 6701, 6661, 6663, 6664, 6660, 6706, 6705, 6630, 6629, 6674,
+    6677, 6675, 6678, 6707, 6711, 6716, 6687, 6690, 6686, 6689, 6626, 6625,
+    6752, 6753, 6806, 6837, 6755, 6754, 6758, 6759, 6838, 6839, 6761, 6760,
+    6762, 6757, 6763, 6756, 6840, 6819, 6807, 6844, 6843, 6808, 6848, 6847,
+    6830, 6849, 6850, 6842, 6841, 6820, 6846, 6845, 6821, 6851, 6852, 6822,
+    6831, 6856, 6855, 6829, 6862, 6863, 6828, 6861, 6864, 6867, 6860, 6827,
+    6854, 6853, 6823, 6865, 6857, 6824, 6866, 6859, 6826, 6868, 6858, 6825
+]

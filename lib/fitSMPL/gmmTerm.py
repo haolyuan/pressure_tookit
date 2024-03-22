@@ -1,9 +1,9 @@
-import torch
 import numpy as np
-import pickle
 import os
-
+import pickle
+import torch
 from typing import TypeVar
+
 try:
     from typing import Literal
 except ImportError:
@@ -12,6 +12,7 @@ _dtype = TypeVar('_dtype')
 
 # Ref: xrmocap
 # https://github.com/openxrlab/xrmocap/blob/3a6b40397f9e3d36c87c11c6c8a3e435c7b0a094/xrmocap/model/loss/prior_loss.py#L326
+
 
 class MaxMixturePriorLoss(torch.nn.Module):
 

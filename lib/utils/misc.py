@@ -3,7 +3,7 @@ import tqdm
 
 
 def progress_bar(producer, text=None, shuffle=False, verbose=True):
-    if type(producer) == int:
+    if type(producer) is int:
         producer = range(producer)
     if shuffle:
         np.random.shuffle(producer)

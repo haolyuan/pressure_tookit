@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 # Max-Planck-Gesellschaft zur Förderung der Wissenschaften e.V. (MPG) is
 # holder of all proprietary rights on this computer program.
 # You can only use this computer program if you have closed
@@ -14,7 +12,6 @@
 #
 # Contact: ps-license@tuebingen.mpg.de
 
-
 # PyTorch implementation of L-BFGS with Strong Wolfe line search
 # Will be removed once https://github.com/pytorch/pytorch/pull/8824
 # is merged
@@ -24,7 +21,6 @@
 
 import torch
 from functools import reduce
-
 from torch.optim import Optimizer
 
 
@@ -44,7 +40,7 @@ def _cubic_interpolate(x1, f1, g1, x2, f2, g2, bounds=None):
     #   min_pos = x2 - (x2 - x1)*((g2 + d2 - d1)/(g2 - g1 + 2*d2));
     #   t_new = min(max(min_pos,xmin_bound),xmax_bound);
     d1 = g1 + g2 - 3 * (f1 - f2) / (x1 - x2)
-    d2_square = d1 ** 2 - g1 * g2
+    d2_square = d1**2 - g1 * g2
     if d2_square >= 0:
         d2 = d2_square.sqrt()
         if x1 <= x2:
@@ -56,7 +52,16 @@ def _cubic_interpolate(x1, f1, g1, x2, f2, g2, bounds=None):
         return (xmin_bound + xmax_bound) / 2.
 
 
-def _strong_Wolfe(obj_func, x, t, d, f, g, gtd, c1=1e-4, c2=0.9, tolerance_change=1e-9,
+def _strong_Wolfe(obj_func,
+                  x,
+                  t,
+                  d,
+                  f,
+                  g,
+                  gtd,
+                  c1=1e-4,
+                  c2=0.9,
+                  tolerance_change=1e-9,
                   max_iter=20,
                   max_ls=25):
     # ported from https://github.com/torch/optim/blob/master/lswolfe.lua
@@ -99,8 +104,14 @@ def _strong_Wolfe(obj_func, x, t, d, f, g, gtd, c1=1e-4, c2=0.9, tolerance_chang
         min_step = t + 0.01 * (t - t_prev)
         max_step = t * 10
         tmp = t
-        t = _cubic_interpolate(t_prev, f_prev, gtd_prev, t, f_new, gtd_new,
-                               bounds=(min_step, max_step))
+        t = _cubic_interpolate(
+            t_prev,
+            f_prev,
+            gtd_prev,
+            t,
+            f_new,
+            gtd_new,
+            bounds=(min_step, max_step))
 
         # next step
         t_prev = tmp
@@ -158,7 +169,8 @@ def _strong_Wolfe(obj_func, x, t, d, f, g, gtd, c1=1e-4, c2=0.9, tolerance_chang
             bracket_f[high_pos] = f_new
             bracket_g[high_pos] = g_new.clone()
             bracket_gtd[high_pos] = gtd_new
-            low_pos, high_pos = (0, 1) if bracket_f[0] <= bracket_f[1] else (1, 0)
+            low_pos, high_pos = (0, 1) if bracket_f[0] <= bracket_f[1] else (1,
+                                                                             0)
         else:
             if abs(gtd_new) <= -c2 * gtd:
                 # Wolfe conditions satisfied
@@ -185,7 +197,7 @@ def _strong_Wolfe(obj_func, x, t, d, f, g, gtd, c1=1e-4, c2=0.9, tolerance_chang
         t = bracket[low_pos]
         f_new = bracket_f[low_pos]
         g_new = bracket_g[low_pos]
-    except:
+    except:  # noqa: E722
         t = bracket[0]
         f_new = bracket_f[0]
         g_new = bracket_g[0]
@@ -195,7 +207,8 @@ def _strong_Wolfe(obj_func, x, t, d, f, g, gtd, c1=1e-4, c2=0.9, tolerance_chang
 # LBFGS with strong Wolfe line search introduces in PR #8824
 # Will be removed once merged with master
 class LBFGS(Optimizer):
-    """Implements L-BFGS algorithm, heavily inspired by `minFunc
+    """Implements L-BFGS algorithm, heavily inspired by `minFunc.
+
     <https://www.cs.ubc.ca/~schmidtm/Software/minFunc.html>`.
     .. warning::
         This optimizer doesn't support per-parameter options and parameter
@@ -205,7 +218,8 @@ class LBFGS(Optimizer):
         improved in the future.
     .. note::
         This is a very memory intensive optimizer (it requires additional
-        ``param_bytes * (history_size + 1)`` bytes). If it doesn't fit in memory
+        ``param_bytes * (history_size + 1)`` bytes).
+        If it doesn't fit in memory
         try reducing the history size, or use a different algorithm.
     Arguments:
         lr (float): learning rate (default: 1)
@@ -221,26 +235,38 @@ class LBFGS(Optimizer):
         line_search_fn (str): either 'strong_Wolfe' or None (default: None).
     """
 
-    def __init__(self, params, lr=1, max_iter=20, max_eval=None,
-                 tolerance_grad=1e-5, tolerance_change=1e-9, history_size=100,
+    def __init__(self,
+                 params,
+                 lr=1,
+                 max_iter=20,
+                 max_eval=None,
+                 tolerance_grad=1e-5,
+                 tolerance_change=1e-9,
+                 history_size=100,
                  line_search_fn=None):
         if max_eval is None:
             max_eval = max_iter * 5 // 4
-        defaults = dict(lr=lr, max_iter=max_iter, max_eval=max_eval,
-                        tolerance_grad=tolerance_grad, tolerance_change=tolerance_change,
-                        history_size=history_size, line_search_fn=line_search_fn)
+        defaults = dict(
+            lr=lr,
+            max_iter=max_iter,
+            max_eval=max_eval,
+            tolerance_grad=tolerance_grad,
+            tolerance_change=tolerance_change,
+            history_size=history_size,
+            line_search_fn=line_search_fn)
         super(LBFGS, self).__init__(params, defaults)
 
         if len(self.param_groups) != 1:
             raise ValueError("LBFGS doesn't support per-parameter options "
-                             "(parameter groups)")
+                             '(parameter groups)')
 
         self._params = self.param_groups[0]['params']
         self._numel_cache = None
 
     def _numel(self):
         if self._numel_cache is None:
-            self._numel_cache = reduce(lambda total, p: total + p.numel(), self._params, 0)
+            self._numel_cache = reduce(lambda total, p: total + p.numel(),
+                                       self._params, 0)
         return self._numel_cache
 
     def _gather_flat_grad(self):
@@ -260,7 +286,8 @@ class LBFGS(Optimizer):
         for p in self._params:
             numel = p.numel()
             # view as to avoid deprecated pointwise semantics
-            p.data.add_(step_size, update[offset:offset + numel].view_as(p.data))
+            p.data.add_(step_size,
+                        update[offset:offset + numel].view_as(p.data))
             offset += numel
         assert offset == self._numel()
 
@@ -280,6 +307,7 @@ class LBFGS(Optimizer):
 
     def step(self, closure):
         """Performs a single optimization step.
+
         Arguments:
             closure (callable): A closure that reevaluates the model
                 and returns the loss.
@@ -303,7 +331,7 @@ class LBFGS(Optimizer):
 
         # evaluate initial f(x) and df/dx
         orig_loss = closure()
-        #print('fitting closure loss lbfgsls: ', orig_loss)
+        # print('fitting closure loss lbfgsls: ', orig_loss)
         loss = float(orig_loss)
         current_evals = 1
         state['func_evals'] += 1
@@ -409,18 +437,23 @@ class LBFGS(Optimizer):
             ls_func_evals = 0
             if line_search_fn is not None:
                 # perform line search, using user function
-                if line_search_fn != "strong_Wolfe":
+                if line_search_fn != 'strong_Wolfe':
                     raise RuntimeError("only 'strong_Wolfe' is supported")
                 else:
                     x_init = self._clone_param()
 
                     def obj_func(x, t, d):
                         return self._directional_evaluate(closure, x, t, d)
-                    loss, flat_grad, t, ls_func_evals = _strong_Wolfe(obj_func, x_init, t, d,
-                                                                      loss,
-                                                                      flat_grad,
-                                                                      gtd,
-                                                                      max_iter=max_iter)
+
+                    loss, flat_grad, t, ls_func_evals = _strong_Wolfe(
+                        obj_func,
+                        x_init,
+                        t,
+                        d,
+                        loss,
+                        flat_grad,
+                        gtd,
+                        max_iter=max_iter)
                     if t is not None:
                         self._add_grad(t, d)
                         opt_cond = flat_grad.abs().max() <= tolerance_grad
