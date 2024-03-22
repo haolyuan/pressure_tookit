@@ -62,13 +62,11 @@ def create_weights_dict(
         opt_weights_dict['shape_weights'] = shape_weights
         opt_weights_dict['limb_weights'] = limb_weights
     elif stage == 'init_pose':
-        opt_weights_dict['limb_weights'] = limb_weights
         opt_weights_dict['gmm_weights'] = gmm_weights
         opt_weights_dict['tpose_weights'] = tpose_weights
         
     elif stage == 'tracking':
         opt_weights_dict['gmm_weights'] = gmm_weights
-        opt_weights_dict['limb_weights'] = limb_weights
         opt_weights_dict['tfoot_weights'] = tfoot_weights
         opt_weights_dict['tpose_weights'] = tpose_weights
 

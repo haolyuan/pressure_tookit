@@ -61,8 +61,7 @@ def load_contact(contact_fn):
     contact_label = [[0,0,0,0,0,0,0,0,0], [0,0,0,0,0,0,0,0,0]]
     
     row_range = [range(0, 8), range(8, 15), range(15, 23), range(23, 31)]
-    
-    # 左脚
+    # left foot
     for row in range(region_l.shape[0]):
         for col in range(region_l.shape[1]):
             if region_l[row][col] != 0:    
@@ -92,7 +91,7 @@ def load_contact(contact_fn):
                         contact_label[0][8] = 1
                     if col in range(4, 11):
                         contact_label[0][7] = 1
-    # 右脚
+    # right foot
     for row in range(region_r.shape[0]):
         for col in range(region_r.shape[1]):
             if region_r[row][col] != 0:    
@@ -122,7 +121,7 @@ def load_contact(contact_fn):
                         contact_label[1][7] = 1
                     if col in range(8, 11):
                         contact_label[1][8] = 1
-        return contact_label
+    return contact_label
 
 def load_init_pose(data_fn, form='cliff'):
     """_summary_
@@ -149,6 +148,7 @@ def load_init_pose(data_fn, form='cliff'):
     # TODO: now only load cliff format
     if form == 'cliff':
         init_data = dict(np.load(data_fn).items())
+        
         if init_data['pose'].shape[0] > 1:
             init_pose = np.expand_dims(init_data['pose'][0], 0) 
         else:
@@ -223,7 +223,7 @@ class Pressure_Dataset(Dataset):
         self.shape_path = None if stage == 'init_shape 'else \
             osp.join(self.basdir, 'annotations', self.dataset_name, 'init_shape', f'init_shape_{self.sub_ids}.npz')
 
-        import pdb;pdb.set_trace()
+        # import pdb;pdb.set_trace()
         # joint mapper
         self.joint_mapper = self.init_joint_mapper()
         
@@ -234,9 +234,11 @@ class Pressure_Dataset(Dataset):
         optim_weights[1] = 0        
         # put higher weights on knee and elbow joints for mimic'ed poses
         optim_weights[[10,13]] = 2
-        optim_weights[[3,6,4,7]] = 20
+        optim_weights[[3,6,4,7]] = 200
 
         optim_weights[[17, 18]] = 0
+        
+
 
         return torch.tensor(optim_weights)
 
@@ -317,6 +319,22 @@ class Pressure_Dataset(Dataset):
             # init_path = osp.join(self.init_root, self.dataset_name, self.sub_ids, self.seq_name, f'init_pose_{self.sub_ids}.npz')
             init_pose, init_global_rot, init_transl = load_init_pose(init_path, form='tracking')
             init_betas, init_scale = load_init_shape(self.shape_path)
+        
+        # import copy
+        # img_tar = copy.deepcopy(img)
+        # halpemap_color_joints = frame_kp[self.joint_mapper[1], :]
+        # for i in range(halpemap_color_joints.shape[0]):  
+
+        #     x = halpemap_color_joints[i, 0]
+        #     y = halpemap_color_joints[i, 1]
+        #     img_tar = cv2.putText(img_tar, f"{i}", (int(x), int(y)),
+        #                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255))
+
+        #     img_tar = cv2.circle(img_tar, (int(x), int(y)), 1, (0, 0, 255), 0)   
+
+        # cv2.imwrite('debug/new_framework/kp_tar.png', img_tar)
+        # import pdb;pdb.set_trace()
+        
         
         output_dict = {
                     'root_path':self.rgbd_path,

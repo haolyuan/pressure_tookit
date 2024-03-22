@@ -83,6 +83,7 @@ class SMPLifyMMVPLoss(nn.Module):
     def forward(self, body_model_output, camera, joint_weights, joint_mapper,
                 gt_joints, gt_depth_nmap, gt_depth_vmap, gt_contact):
         
+                
         if gt_contact is not None:
             contact_ids, _, _ = self.contact_term.contact2smpl(np.array(gt_contact))
         elif self.stage != 'init_shape':
@@ -95,8 +96,6 @@ class SMPLifyMMVPLoss(nn.Module):
         live_plane = body_model_output.foot_plane
         live_pose = body_model_output.body_pose
         live_betas = body_model_output.betas
-        # trimesh.Trimesh(vertices=live_plane.detach().cpu().numpy()[0]).export('debug/curr_footplane.obj')
-
 
         device = live_joints.device
         
@@ -104,8 +103,6 @@ class SMPLifyMMVPLoss(nn.Module):
         openposemap_color_joints = live_joints[:, joint_mapper[0], :].squeeze(0)
         halpemap_color_joints = gt_joints[joint_mapper[1], :].clone().detach().to(device)
 
-        
-        
         
         projected_joints = camera.projectJoints(openposemap_color_joints)
         joint_loss = self.keypoint_weights * self.color_term(keypoint_data=halpemap_color_joints,
@@ -146,19 +143,11 @@ class SMPLifyMMVPLoss(nn.Module):
             # ==== gmm loss ====
             pose_prior_loss = self.gmm_term(body_pose=live_pose) * self.gmm_weights
             total_loss += pose_prior_loss
-            
 
-        
         elif self.stage == 'init_pose':
             # ==== gmm loss ====
             pose_prior_loss = self.gmm_term(body_pose=live_pose) * self.gmm_weights
             total_loss +=  pose_prior_loss
-            
-            # limbfixed_loss = torch.norm(live_pose[:, 19*3: 19*3+3]) +\
-            #     torch.norm(live_pose[:, 20*3: 20*3+3]) +\
-            #     torch.norm(live_pose[:, 21*3: 21*3+3]) +\
-            #     torch.norm(live_pose[:, 22*3: 22*3+3])         
-            # limbfixed_loss *= self.limb_weights
 
             # ==== temp pose loss ====
             # temp loss for low conf 2d joints
@@ -170,19 +159,25 @@ class SMPLifyMMVPLoss(nn.Module):
             if gt_conf[6] < 0.65: # LElbow, need fix LShoulder
                 total_loss += torch.norm(self.pre_pose[:, 15*3: 15*3+3] - live_pose[:, 15*3: 15*3+3])    
             if gt_conf[7] < 0.65: # LWrist, need fix LElbow
-                total_loss += torch.norm(self.pre_pose[:, 17*3: 17*3+3] - live_pose[:, 17*3: 17*3+3])  
-
+                total_loss += torch.norm(self.pre_pose[:, 17*3: 17*3+3] - live_pose[:, 17*3: 17*3+3])
+            # # TODO:add lower body temp loss for low conf
+            if gt_conf[10] < 0.65:
+                total_loss += torch.norm(self.pre_pose[:, 1*3: 1*3+3] - live_pose[:, 1*3:1*3+3])
+            if gt_conf[13] < 0.65:
+                total_loss += torch.norm(self.pre_pose[:, 0*3: 0*3+3] - live_pose[:, 0*3:0*3+3])                
+            if gt_conf[11] < 0.8:
+                total_loss += torch.norm(self.pre_pose[:, 4*3: 4*3+3] - live_pose[:, 4*3:4*3+3])       
+            if gt_conf[14] < 0.8:
+                total_loss += torch.norm(self.pre_pose[:, 3*3: 3*3+3] - live_pose[:, 3*3:3*3+3])  
+            
+            
             # fix joints rot
             total_loss += torch.norm(live_pose[:, 19*3:19*3+3]) +\
                 torch.norm(live_pose[:, 20*3:20*3+3]) +\
                 torch.norm(live_pose[:, 21*3:21*3+3]) +\
                 torch.norm(live_pose[:, 22*3:22*3+3]) +\
                 torch.norm(live_pose[:, 14*3: 14*3+ 3]) +\
-                torch.norm(live_pose[:, 11*3: 11*3+ 3]) +\
-                torch.norm(live_pose[:, 17*3+2: 17*3+3]) +\
-                torch.norm(live_pose[:, 18*3+2: 18*3+3]) +\
-                torch.relu( -1 * live_pose[:, 18*3+1].squeeze(0)) +\
-                torch.relu( 1 * live_pose[:, 17*3+1].squeeze(0))   
+                torch.norm(live_pose[:, 11*3: 11*3+ 3]) 
 
             if contact_ids.shape[0] > 0:
                 penetrate_loss = torch.mean(torch.abs(live_vertices[0, contact_ids, 1]))* self.penetrate_weights
@@ -201,11 +196,20 @@ class SMPLifyMMVPLoss(nn.Module):
                 total_loss += torch.norm(self.pre_pose[:, 16*3: 16*3+3] - live_pose[:, 16*3:16*3+3])
             if gt_conf[4] < 0.65: # RWrist, need fix RElbow
                 total_loss += torch.norm(self.pre_pose[:, 18*3: 18*3+3] - live_pose[:, 18*3:18*3+3])
-            if gt_conf[6] < 0.65: # LElbow, need fix LShoulder
+            if gt_conf[6] < 0.8: # LElbow, need fix LShoulder
                 total_loss += torch.norm(self.pre_pose[:, 15*3: 15*3+3] - live_pose[:, 15*3: 15*3+3])    
-            if gt_conf[7] < 0.65: # LWrist, need fix LElbow
+            if gt_conf[7] < 0.8: # LWrist, need fix LElbow
                 total_loss += torch.norm(self.pre_pose[:, 17*3: 17*3+3] - live_pose[:, 17*3: 17*3+3])     
-   
+            
+            # # TODO:add lower body temp loss for low conf
+            if gt_conf[10] < 0.65:
+                total_loss += torch.norm(self.pre_pose[:, 1*3: 1*3+3] - live_pose[:, 1*3:1*3+3])
+            if gt_conf[13] < 0.8:
+                total_loss += torch.norm(self.pre_pose[:, 0*3: 0*3+3] - live_pose[:, 0*3:0*3+3])                
+            if gt_conf[11] < 0.6:
+                total_loss += torch.norm(self.pre_pose[:, 4*3: 4*3+3] - live_pose[:, 4*3:4*3+3])       
+            if gt_conf[14] < 0.8:
+                total_loss += torch.norm(self.pre_pose[:, 3*3: 3*3+3] - live_pose[:, 3*3:3*3+3])  
             
             # fix joints rot
             total_loss += torch.norm(live_pose[:, 19*3:19*3+3]) +\
@@ -213,11 +217,7 @@ class SMPLifyMMVPLoss(nn.Module):
                 torch.norm(live_pose[:, 21*3:21*3+3]) +\
                 torch.norm(live_pose[:, 22*3:22*3+3]) +\
                 torch.norm(live_pose[:, 14*3: 14*3+ 3]) +\
-                torch.norm(live_pose[:, 11*3: 11*3+ 3]) +\
-                torch.norm(live_pose[:, 17*3+2: 17*3+3]) +\
-                torch.norm(live_pose[:, 18*3+2: 18*3+3]) +\
-                torch.relu( -1 * live_pose[:, 18*3+1].squeeze(0)) +\
-                torch.relu( 1 * live_pose[:, 17*3+1].squeeze(0))   
+                torch.norm(live_pose[:, 11*3: 11*3+ 3]) 
 
 
             if contact_ids.shape[0] > 0:
@@ -245,9 +245,5 @@ class SMPLifyMMVPLoss(nn.Module):
                     foot_plane_ids_smplR=[body_model_output.foot_ids[2], body_model_output.foot_ids[3]])* self.tfoot_weights                    
                     
                 total_loss += foot_temp_loss    
-        # import pdb;pdb.set_trace()
-        # print(joint_loss, depth_loss, pose_prior_loss, penetrate_loss) 
-        
-        # print(live_pose[:, 7*3:7*3+3], live_pose[:, 6*3:6*3+3])
                
         return total_loss

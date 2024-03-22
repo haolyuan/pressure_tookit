@@ -47,7 +47,6 @@ class ColorTerm(nn.Module):
 
     def forward(self, keypoint_data, projected_joints, joint_weights):        
         
-        # joint_weights = joint_weights/ torch.sum(joint_weights)
 
         # Calculate the weights for each joints
 
@@ -62,7 +61,6 @@ class ColorTerm(nn.Module):
         # the ground truth 2D detections
         joint_diff = self.robustifier(gt_joints - projected_joints)
         joint_loss = torch.sum(weights ** 2 * joint_diff)
-        # joint_loss = torch.sum(weights * joint_diff)
         
 
         return joint_loss
