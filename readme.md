@@ -8,7 +8,7 @@ MMVP: A Multimodal MoCap Dataset with Vision and Pressure Sensors
 Jianhui Zhao, Fan Li, Shuangpeng Sun, Zhenghao Liang, [Tao Yu](https://ytrock.com/), Qiu Shen, Xun Cao
 
 # Overview
-<img src="docs/MoCap_20230422_182056.gif" width="50%"><img src="docs/MoCap_20230422_132043.gif" width="50%"><img src="docs/MoCap_20230422_151220.gif" width="50%"><img src="docs/MoCap_20230422_172438.gif" width="50%">
+<img src="docs/Mocap_20230422_182056.gif" width="50%"><img src="docs/Mocap_20230422_132043.gif" width="50%"><img src="docs/Mocap_20230422_151220.gif" width="50%"><img src="docs/Mocap_20230422_172438.gif" width="50%">
 
 # News
 - **[25/03/24]**: Code for optimzation are released!
