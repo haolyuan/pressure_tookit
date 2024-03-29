@@ -95,8 +95,7 @@ def parse_config(argv=None):
     #                     default='essentials/bodyModels/smpl',
     #                     type=str,
     #                     help='The directory where the models are stored.')
-    parser.add_argument(
-        '--num_shape_comps', default=10, type=int, help='The number of betas.')
+
     parser.add_argument(
         '--model_gender',
         default='neutral',

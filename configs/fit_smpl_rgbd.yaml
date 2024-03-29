@@ -15,7 +15,6 @@ depth_size:
   - 576
 
 
-num_shape_comps: 10
 model_gender: 'male' # teenager is male, others follow facts
 
 fitting_stage: 'tracking' # init_shape, init_pose, tracking

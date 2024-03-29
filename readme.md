@@ -17,8 +17,6 @@ Jianhui Zhao, Fan Li, Shuangpeng Sun, Zhenghao Liang, [Tao Yu](https://ytrock.co
 Demo for visulization are coming soon!
 Instruction for optimzation are coming soon!
 ## TODO:
-- [ ] add demo for visulizing alignment between 2d keypoints and smpl gt
-- [ ] add demo for visulizing alignment between 3d depth and smpl gt
 - [ ] add instruction for multi-mudal data optimzation.
 
 # Datasets
