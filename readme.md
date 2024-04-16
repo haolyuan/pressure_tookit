@@ -39,6 +39,14 @@ You could change frame info in `configs/visualizing.yaml`.
 Noticing that `frame_idx` may not cover all frames and could be selected in `annotations/smpl_pose`.
 
 # Citation
-
-
-# License
+If you find our work useful in your research, please cite our paper [MMVP](https://metaverse-ai-lab-thu.github.io/MMVP-Dataset/):
+```bibtex
+@inproceedings{Zhang2024MMVP,
+    title={MMVP: A Multimodal MoCap Dataset with Vision and Pressure Sensors},
+    author={He Zhang, Shenghao Ren, Haolei Yuan, Jianhui Zhao, Fan Li, Shuangpeng Sun, Zhenghao Liang, Tao Yu, Qiu Shen, Xun Cao},
+    journal={CVPR},
+    year={2024}
+}
+```
+# Contact
+- Tao Yu (ytrock@126.com)
