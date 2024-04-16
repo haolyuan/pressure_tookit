@@ -2,10 +2,8 @@ import cv2
 import numpy as np
 import torch
 import torch.nn as nn
-from lib.visualizer.renderer import modelRender
 
-# from lib.utils.fileio import saveProjectedJoints
-# saveProjectedJoints(filename='debug/2d+.png',img=img,joint_projected=projected_joints)
+from lib.utils.render_utils import modelRender
 
 
 class GMoF(nn.Module):

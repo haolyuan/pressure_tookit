@@ -34,8 +34,8 @@ def fit_single_frame(img,
                      output_temp_fn=None,
                      output_gt_depth_fn=None):
 
-    import pdb
-    pdb.set_trace()
+    # import pdb
+    # pdb.set_trace()
     # contact_label = np.ones_like(np.array(contact_label)).tolist()
 
     device = torch.device('cuda') \

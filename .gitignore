@@ -152,3 +152,9 @@ essentials
 # output
 output
 outputs
+input
+
+# test tools
+lib/utils/smpl_modify.py
+lib/utils/foot_utils.py
+configs/fit_smpl_rgbd copy.yaml

@@ -47,11 +47,6 @@ def parse_config(argv=None):
     parser.add_argument(
         '--basdir', default='E:/dataset', type=str, help='Base dir')
     parser.add_argument(
-        '--label_output_dir',
-        default='',
-        type=str,
-        help='pose/mesh/shape data dir')
-    parser.add_argument(
         '--sub_ids', default='S01', type=str, help='Subject ids')
     parser.add_argument(
         '--seq_name',
@@ -86,16 +81,7 @@ def parse_config(argv=None):
         type=int,
         nargs='*',
         help='frame range')
-    parser.add_argument(
-        '--essential_root',
-        type=str,
-        default='/data/nas_data/yuanhaolei/essential_files/essentials')
-    # body model model
-    # parser.add_argument('--model_folder',
-    #                     default='essentials/bodyModels/smpl',
-    #                     type=str,
-    #                     help='The directory where the models are stored.')
-
+    parser.add_argument('--essential_root', type=str, default=' ')
     parser.add_argument(
         '--model_gender',
         default='neutral',

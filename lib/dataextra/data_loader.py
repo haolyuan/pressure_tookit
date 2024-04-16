@@ -216,14 +216,15 @@ class Pressure_Dataset(Dataset):
                               self.dmask_paths)
         ][self.start_idx:self.end_idx]
         # keypoints
-        # TODO: kp 与 pressure一致，而不与image数量一致
+        # kp seq length corres to pressure, but not image
+        kp_root = osp.join('input', f'{self.sub_ids}/{self.seq_name}')
         self.kp_paths = sorted(
-            glob.glob(
-                osp.join(self.rgbd_path, 'keypoints', '**'), recursive=True))
+            glob.glob(osp.join(kp_root, 'keypoints', '**'), recursive=True))
         self.kp_paths = [
             x
             for x in filter(lambda x: x.split('.')[-1] == 'npy', self.kp_paths)
         ][self.start_idx:self.end_idx]
+
         # pressure data, A-pose has no pressure data
 
         self.pressure_paths = sorted(
@@ -240,10 +241,10 @@ class Pressure_Dataset(Dataset):
         ]
 
         # init shape data
-        # TODO: set shape saved path
         self.shape_path = None if stage == 'init_shape 'else \
             osp.join(self.basdir, 'annotations', self.dataset_name,
-                     'init_shape', f'init_shape_{self.sub_ids}.npz')
+                     'smpl_pose', self.sub_ids,
+                     f'init_shape_{self.sub_ids}.npz')
 
         # import pdb;pdb.set_trace()
         # joint mapper
@@ -314,11 +315,12 @@ class Pressure_Dataset(Dataset):
             pressure_path = self.pressure_paths[idx]
             contact_label = load_contact(pressure_path)
         elif self.stage == 'init_shape':
-            contact_label = None
-        else:
+            # contact_label = None
+            # we assume that people should keep A-pose when init shape
+            contact_label = np.ones((2, 9)).tolist()
+        else:  # init pose
             pressure_path = self.pressure_paths[idx]
             contact_label = load_contact(pressure_path)
-
             # optionally
             # contact_label = np.ones_like(np.array(contact_label)).tolist()
 
@@ -347,26 +349,9 @@ class Pressure_Dataset(Dataset):
             init_path = osp.join(
                 self.init_root.rsplit('/', 1)[0], 'results', self.dataset_name,
                 self.sub_ids, self.seq_name, f'smpl_{curr_idx:03d}.npz')
-
             init_pose, init_global_rot, init_transl = load_init_pose(
                 init_path, form='tracking')
             init_betas, init_scale = load_init_shape(self.shape_path)
-
-        # import copy
-        # img_tar = copy.deepcopy(img)
-        # halpemap_color_joints = frame_kp[self.joint_mapper[1], :]
-        # for i in range(halpemap_color_joints.shape[0]):
-
-        #     x = halpemap_color_joints[i, 0]
-        #     y = halpemap_color_joints[i, 1]
-        #     img_tar = cv2.putText(img_tar, f"{i}", (int(x), int(y)),
-        #                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255))
-
-        #    img_tar = cv2.circle(img_tar,
-        #                         (int(x), int(y)), 1, (0, 0, 255), 0)
-
-        # cv2.imwrite('debug/new_framework/kp_tar.png', img_tar)
-        # import pdb;pdb.set_trace()
 
         output_dict = {
             'root_path': self.rgbd_path,
